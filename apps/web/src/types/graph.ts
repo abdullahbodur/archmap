@@ -7,6 +7,7 @@ export interface InfraNode {
   technology?: string;
   description?: string;
   ref?: string;
+  internal?: boolean;
 }
 
 export interface Endpoint {

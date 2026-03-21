@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback, useMemo } from "react";
+import { useEffect, useCallback, useMemo, useRef } from "react";
 import {
   ReactFlow,
   Background,
@@ -17,6 +17,7 @@ import "@xyflow/react/dist/style.css";
 import type { GraphView as GraphViewData, AnalyzedService } from "@/types/graph";
 import type { ViewTab } from "./GraphTabs";
 import { buildKindMap } from "@/lib/classify";
+import { buildServiceContainerView } from "@/lib/buildServiceContainer";
 import ServiceNode from "./nodes/ServiceNode";
 import DataTypeNode from "./nodes/DataTypeNode";
 import FunctionNode from "./nodes/FunctionNode";
@@ -166,20 +167,33 @@ function GraphCanvas({
   onSelectedServiceChange,
   onDrillIn,
 }: Omit<Props, "serviceCount">) {
+  // ── 0. Per-service container view (built dynamically in the frontend) ─────
+  // Must be memoised — buildServiceContainerView allocates new arrays every call,
+  // so an unmemoised value would change reference on every render and trigger the
+  // laidNodes memo → useEffect → setNodes infinite loop.
+  const activeView: GraphViewData = useMemo(() => {
+    if (viewType === "containerDiagram" && selectedServiceId) {
+      const svc = allServices.find((s) => s.id === selectedServiceId);
+      if (svc) return buildServiceContainerView(svc, allServices);
+    }
+    return view;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewType, selectedServiceId, view]);
+
   // ── 1. Filter nodes and edges ─────────────────────────────────────────────
   const serviceFilteredNodes =
     viewType === "functionFlow" && selectedServiceId
-      ? view.nodes.filter((n) => (n.data as any).serviceId === selectedServiceId)
-      : view.nodes;
+      ? activeView.nodes.filter((n) => (n.data as any).serviceId === selectedServiceId)
+      : activeView.nodes;
 
   const serviceFilteredNodeIds = new Set(serviceFilteredNodes.map((n) => n.id));
 
   const filteredEdges =
     viewType === "functionFlow" && selectedServiceId
-      ? view.edges.filter(
+      ? activeView.edges.filter(
           (e) => serviceFilteredNodeIds.has(e.source) && serviceFilteredNodeIds.has(e.target)
         )
-      : view.edges;
+      : activeView.edges;
 
   const filteredNodes = viewType === "functionFlow"
     ? (() => {
@@ -200,15 +214,14 @@ function GraphCanvas({
     : filteredNodes;
 
   // ── 3. Dagre layout (memoised — re-runs only when view data changes) ───────
-  // Applying layout before routing means handle selection is based on the
-  // final node positions, so edge dock assignments are accurate.
-  // On first render node.measured is undefined; dagre uses the hardcoded
-  // defaults (260×160). The Auto Layout button re-runs with real dimensions.
+  // containerDiagram skips dagre: nodes already have hand-crafted positions and
+  // use parent/child (group) relationships that dagre doesn't understand.
   const laidNodes = useMemo(() => {
+    if (viewType === "containerDiagram") return enrichedNodes;
     const { nodes } = getLayoutedElements(enrichedNodes as any, filteredEdges as any);
     return nodes;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, viewType, selectedServiceId]);
+  }, [activeView, viewType, selectedServiceId]);
 
   // ── 4. Route edges using laid-out positions ───────────────────────────────
   const rfEdges = useMemo(() => {
@@ -217,15 +230,32 @@ function GraphCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [laidNodes]);
 
+  // Ref to avoid stale closure in deferred re-route callbacks
+  const filteredEdgesRef = useRef(filteredEdges);
+  filteredEdgesRef.current = filteredEdges;
+
   // ── 5. React Flow state ───────────────────────────────────────────────────
   const [nodes, setNodes, onNodesChange] = useNodesState(laidNodes as any);
   const [edges, setEdges, onEdgesChange] = useEdgesState(rfEdges as any);
-  const { fitView } = useReactFlow();
+  const { fitView, getNodes } = useReactFlow();
 
   // Sync state whenever the laid-out data changes (view switch, filter change)
   useEffect(() => {
     setNodes(laidNodes as any);
     setEdges(rfEdges as any);
+
+    if (viewType === "containerDiagram") {
+      // Second pass: re-route once React Flow has measured actual node dimensions.
+      // Use getNodes() (reads React Flow's Zustand store synchronously) to avoid
+      // stale positions from batched React state.
+      const timer = setTimeout(() => {
+        const nm = new Map(getNodes().map((n: any) => [n.id, n]));
+        setEdges(routeEdges(filteredEdgesRef.current, nm) as any);
+        fitView({ duration: 300 });
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+
     setTimeout(() => fitView({ duration: 300 }), 50);
   }, [laidNodes, rfEdges, setNodes, setEdges, fitView]);
 
@@ -233,15 +263,22 @@ function GraphCanvas({
   // edges from the original (unprocessed) filteredEdges to avoid double-
   // converting markerEnd.
   const handleAutoLayout = useCallback(() => {
-    // Re-run with actual measured dimensions (available after first render).
-    const { nodes: laid } = getLayoutedElements(nodes as any, filteredEdges as any);
-    const nm = new Map(laid.map((n: any) => [n.id, n]));
-    const rerouted = routeEdges(filteredEdges, nm);
-    setNodes(laid as any);
-    setEdges(rerouted as any);
-    setTimeout(() => fitView({ duration: 400 }), 50);
+    if (viewType === "containerDiagram") {
+      // No dagre — just re-route with current measured positions, then fitView.
+      // getNodes() reads React Flow's Zustand store directly (never stale).
+      const nm = new Map(getNodes().map((n: any) => [n.id, n]));
+      setEdges(routeEdges(filteredEdgesRef.current, nm) as any);
+      setTimeout(() => fitView({ duration: 400 }), 50);
+    } else {
+      // Re-run with actual measured dimensions (available after first render).
+      const { nodes: laid } = getLayoutedElements(nodes as any, filteredEdges as any);
+      const nm = new Map(laid.map((n: any) => [n.id, n]));
+      setNodes(laid as any);
+      setEdges(routeEdges(filteredEdges, nm) as any);
+      setTimeout(() => fitView({ duration: 400 }), 50);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes, filteredEdges, setNodes, setEdges, fitView]);
+  }, [nodes, filteredEdges, viewType, getNodes, setNodes, setEdges, fitView]);
 
   return (
     <ReactFlow
@@ -251,8 +288,24 @@ function GraphCanvas({
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       nodeTypes={nodeTypes}
+      onNodeDragStop={() => {
+        if (viewType !== "containerDiagram") return;
+        // getNodes() reads React Flow's Zustand store synchronously — guaranteed
+        // to have the final drag-end position of every node (bypasses React
+        // batching, so never stale unlike setNodes(current => ...) pattern).
+        const nm = new Map(getNodes().map((n: any) => [n.id, n]));
+        setEdges(routeEdges(filteredEdgesRef.current, nm) as any);
+      }}
       onNodeClick={(_, node) => {
         if (viewType === "serviceFlow" && node.type === "serviceNode") {
+          onDrillIn(node.id);
+        }
+        // External service nodes in container diagram → navigate to their container
+        if (
+          viewType === "containerDiagram" &&
+          node.type === "serviceNode" &&
+          !node.parentId
+        ) {
           onDrillIn(node.id);
         }
       }}
@@ -279,7 +332,7 @@ function GraphCanvas({
           Auto Layout
         </button>
       </Panel>
-      {viewType === "functionFlow" && (
+      {(viewType === "functionFlow" || viewType === "containerDiagram") && (
         <Panel position="top-left">
           <div className="flex items-center gap-3 bg-gray-900/80 border border-gray-700 rounded-md px-3 py-1.5 backdrop-blur">
             <span className="text-xs text-gray-400">Service:</span>
@@ -318,7 +371,7 @@ export default function GraphView({
     );
   }
 
-  if (viewType === "functionFlow" && !selectedServiceId) {
+  if ((viewType === "functionFlow" || viewType === "containerDiagram") && !selectedServiceId) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 gap-4">
         <ServiceSearch

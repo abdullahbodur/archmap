@@ -133,6 +133,16 @@ infrastructure:
     const config = parseRepoConfig("name: Service");
     expect(config!.infrastructure).toBeUndefined();
   });
+
+  it("parses internal: true on an infra entry", () => {
+    const yaml = `infrastructure:\n  - id: db\n    name: DB\n    type: database\n    internal: true`;
+    expect(parseRepoConfig(yaml)!.infrastructure![0].internal).toBe(true);
+  });
+
+  it("internal is absent (not set) when not specified", () => {
+    const yaml = `infrastructure:\n  - id: db\n    name: DB\n    type: database`;
+    expect(parseRepoConfig(yaml)!.infrastructure![0].internal).toBeUndefined();
+  });
 });
 
 // ─── resolveInfraRefsLocal ────────────────────────────────────────────────────
