@@ -41,7 +41,7 @@ It reads source files statically — no Docker, no databases, no running service
 ```yaml
 - uses: abdullahbodur/archmap@main
   with:
-    github_token: ${{ secrets.ARCHMAP_TOKEN }}
+    github_token: ${{ secrets.ORG_TOKEN }}
     github_org: your-org
     output_path: _site
 ```

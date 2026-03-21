@@ -34,7 +34,7 @@ jobs:
 
       - name: Scan GitHub org
         env:
-          GITHUB_TOKEN: ${{ secrets.ARCHMAP_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.ORG_TOKEN }}
           GITHUB_ORG: docktail
           SCANNER_SOURCE: github
           DEPLOYER: git

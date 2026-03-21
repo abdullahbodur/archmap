@@ -29,7 +29,7 @@ steps:
 
   - uses: abdullahbodur/archmap@main
     with:
-      github_token: ${{ secrets.ARCHMAP_TOKEN }}
+      github_token: ${{ secrets.ORG_TOKEN }}
       github_org: your-org
       output_path: _site
 ```
@@ -69,7 +69,7 @@ jobs:
 
       - uses: abdullahbodur/archmap@main
         with:
-          github_token: ${{ secrets.ARCHMAP_TOKEN }}
+          github_token: ${{ secrets.ORG_TOKEN }}
           github_org: your-org
           output_path: _site
 
@@ -102,4 +102,4 @@ Create a fine-grained personal access token with:
 - Repository access: all repositories
 - Permissions: `Contents` read/write, `Metadata` read-only, `Pages` read/write
 
-Store it as a repository secret named `ARCHMAP_TOKEN`.
+Store it as a repository secret named `ORG_TOKEN`.
