@@ -1,11 +1,12 @@
 "use client";
 
-export type ViewTab = "serviceFlow" | "dataFlow" | "functionFlow";
+export type ViewTab = "serviceFlow" | "dataFlow" | "functionFlow" | "containerDiagram";
 
 const TABS: { id: ViewTab; label: string; description: string }[] = [
   { id: "serviceFlow", label: "Service Flow", description: "Service dependencies" },
   { id: "dataFlow", label: "Data Flow", description: "DTO contracts" },
   { id: "functionFlow", label: "Function Flow", description: "Intra-service method call graph" },
+  { id: "containerDiagram", label: "Container", description: "C4-style container diagram with infrastructure" },
 ];
 
 interface Props {

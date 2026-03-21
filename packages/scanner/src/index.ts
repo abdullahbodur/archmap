@@ -7,43 +7,57 @@ import type { AnalyzedService } from "@archmap/graph-builder";
 import { createDeployer } from "@archmap/deployers";
 import { analyzeSpringBoot } from "@archmap/analyzer";
 import type { FileContent } from "@archmap/analyzer";
-import type { GraphData, RepoConfig } from "./types";
+import type { GraphData, RepoConfig, InfraNode, RawInfraDecl } from "./types";
+import { parseRepoConfig, resolveInfraRefsLocal } from "./config";
 
 const SCANNER_SOURCE = process.env.SCANNER_SOURCE ?? "github"; // "github" | "local"
 
-// ─── Shared helpers ───────────────────────────────────────────────────────────
+// ─── Infra ref resolution (GitHub-only helpers) ────────────────────────────
 
-function parseRepoConfig(text: string): RepoConfig | null {
+async function resolveGithubInfraRef(ref: string, octokit: Octokit, owner: string): Promise<Partial<InfraNode> | null> {
+  const match = ref.match(/^([^/]+)\/(.+?)(?:\?ref=(.+))?$/);
+  if (!match) return null;
+  const [, repo, filePath, gitRef = "HEAD"] = match;
   try {
-    const parsed = loadYaml(text) as Record<string, unknown>;
-    return {
-      name:        typeof parsed.name        === "string" ? parsed.name        : undefined,
-      description: typeof parsed.description === "string" ? parsed.description : undefined,
-      skip:        parsed.skip === true,
-      type:        (["service", "library", "tool", "infra"] as const).includes(parsed.type as any)
-                     ? (parsed.type as RepoConfig["type"]) : undefined,
-      domain:      typeof parsed.domain === "string" ? parsed.domain
-                     : typeof parsed.group === "string" ? parsed.group : undefined,
-      depends_on:  Array.isArray(parsed.depends_on)
-                     ? (parsed.depends_on as unknown[]).filter((x): x is string => typeof x === "string")
-                     : [],
-      tags:        Array.isArray(parsed.tags)
-                     ? (parsed.tags as unknown[]).filter((x): x is string => typeof x === "string")
-                     : [],
-      node: (() => {
-        const n = parsed.node as Record<string, unknown> | undefined;
-        if (!n || typeof n !== "object") return undefined;
-        return {
-          color:       typeof n.color       === "string" ? n.color       : undefined,
-          icon:        typeof n.icon        === "string" ? n.icon        : undefined,
-          badge:       typeof n.badge       === "string" ? n.badge       : undefined,
-          description: typeof n.description === "string" ? n.description : undefined,
-        };
-      })(),
-    };
-  } catch {
-    return null;
+    const { data } = await octokit.repos.getContent({ owner, repo, path: filePath, ref: gitRef });
+    if (!("content" in data)) return null;
+    return loadYaml(Buffer.from(data.content, "base64").toString("utf-8")) as Partial<InfraNode>;
+  } catch { return null; }
+}
+
+async function resolveInfraRefsGithub(
+  decls: RawInfraDecl[] | undefined,
+  octokit: Octokit,
+  owner: string,
+  repoName: string
+): Promise<InfraNode[] | undefined> {
+  if (!decls?.length) return undefined;
+  const validTypes = new Set(["database", "queue", "cache", "external"]);
+  const result: InfraNode[] = [];
+  for (const decl of decls) {
+    let merged: Record<string, unknown> = { ...decl };
+    if (decl.ref) {
+      if (decl.ref.startsWith("./") || decl.ref.startsWith("../")) {
+        // Same-repo ref — fetch from GitHub
+        const relPath = decl.ref.startsWith("./") ? decl.ref.slice(2) : decl.ref;
+        try {
+          const { data } = await octokit.repos.getContent({ owner, repo: repoName, path: relPath });
+          if ("content" in data) {
+            const fromRef = loadYaml(Buffer.from(data.content, "base64").toString("utf-8")) as Partial<InfraNode>;
+            merged = { ...fromRef, ...decl };
+          }
+        } catch {}
+      } else {
+        // Cross-repo ref
+        const fromRef = await resolveGithubInfraRef(decl.ref, octokit, owner);
+        if (fromRef) merged = { ...fromRef, ...decl };
+      }
+    }
+    if (typeof merged.name === "string" && typeof merged.type === "string" && validTypes.has(merged.type)) {
+      result.push(merged as unknown as InfraNode);
+    }
   }
+  return result.length > 0 ? result : undefined;
 }
 
 function buildAnalyzedService(
@@ -237,7 +251,9 @@ async function runLocalScan(servicesDir: string): Promise<{ services: AnalyzedSe
       analyzed = buildStubService(repoName, repoUrl, description, language);
     }
 
+    const resolvedInfra = resolveInfraRefsLocal(config?.infrastructure, repoDir);
     applyConfigOverrides(analyzed, config);
+    if (resolvedInfra) analyzed.infrastructure = resolvedInfra;
     services.push(analyzed);
   }
 
@@ -287,7 +303,7 @@ async function fetchGithubSourceFiles(
 ): Promise<FileContent[]> {
   try {
     const { data } = await octokit.git.getTree({ owner, repo, tree_sha: branch, recursive: "1" });
-    if (data.truncated) console.warn(`  ⚠ Tree truncated for ${repo}`);
+    if (data.truncated) console.warn(`  Tree truncated for ${repo}`);
     const files = data.tree
       .filter((f) => f.type === "blob" && /^src\/main\/.*\.(java|kt)$/.test(f.path ?? ""))
       .slice(0, 200);
@@ -338,7 +354,9 @@ async function runGithubScan(): Promise<{ services: AnalyzedService[]; repoCount
       analyzed = buildStubService(repo.name, repo.html_url, repo.description ?? "", repo.language ?? "unknown");
     }
 
+    const resolvedInfra = await resolveInfraRefsGithub(config?.infrastructure, octokit, org, repo.name);
     applyConfigOverrides(analyzed, config);
+    if (resolvedInfra) analyzed.infrastructure = resolvedInfra;
     services.push(analyzed);
   }
 

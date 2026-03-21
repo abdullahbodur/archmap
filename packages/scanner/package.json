@@ -5,7 +5,9 @@
   "main": "dist/index.js",
   "scripts": {
     "scan": "tsx src/index.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@octokit/rest": "^21.0.0",

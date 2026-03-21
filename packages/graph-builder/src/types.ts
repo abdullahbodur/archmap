@@ -1,11 +1,25 @@
 // Local type definitions to avoid circular workspace dependencies.
 // These mirror the scanner's AnalyzedService shape at runtime.
 
+export type InfraType = "database" | "queue" | "cache" | "external";
+
+export interface InfraNode {
+  id: string;
+  name: string;
+  type: InfraType;
+  technology?: string;
+  description?: string;
+  ref?: string;
+}
+
 export interface ViewNode {
   id: string;
   type?: string;
   position: { x: number; y: number };
   data: Record<string, unknown>;
+  parentId?: string;
+  extent?: "parent";
+  style?: Record<string, unknown>;
 }
 
 export interface ViewEdge {
@@ -14,6 +28,8 @@ export interface ViewEdge {
   target: string;
   label?: string;
   animated?: boolean;
+  markerEnd?: string;
+  type?: string;
 }
 
 export interface GraphView {
@@ -100,4 +116,5 @@ export interface AnalyzedService {
   kafkaProducers?: KafkaProducer[];
   kafkaConsumers?: KafkaConsumer[];
   nodeConfig?: NodeConfig;
+  infrastructure?: InfraNode[];
 }

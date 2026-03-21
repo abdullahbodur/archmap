@@ -39,7 +39,14 @@ export default function ServiceNode({ data }: NodeProps) {
 
   return (
     <>
-      <Handle type="target" position={Position.Top} />
+      <Handle type="target" position={Position.Top}    id="target-top" />
+      <Handle type="target" position={Position.Left}   id="target-left" />
+      <Handle type="target" position={Position.Right}  id="target-right" />
+      <Handle type="target" position={Position.Bottom} id="target-bottom" />
+      <Handle type="source" position={Position.Top}    id="source-top" />
+      <Handle type="source" position={Position.Left}   id="source-left" />
+      <Handle type="source" position={Position.Right}  id="source-right" />
+      <Handle type="source" position={Position.Bottom} id="source-bottom" />
       <div
         className="bg-gray-900 border border-gray-700 rounded-lg p-3 min-w-[200px] max-w-[260px] shadow-lg"
         style={borderStyle}
@@ -98,7 +105,6 @@ export default function ServiceNode({ data }: NodeProps) {
           </div>
         )}
       </div>
-      <Handle type="source" position={Position.Bottom} />
     </>
   );
 }

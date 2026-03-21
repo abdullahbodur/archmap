@@ -40,6 +40,27 @@ export interface ServiceFunction {
 
 export type ServiceType = "service" | "library" | "tool" | "infra";
 
+export type InfraType = "database" | "queue" | "cache" | "external";
+
+export interface InfraNode {
+  id: string;
+  name: string;
+  type: InfraType;
+  technology?: string;
+  description?: string;
+  ref?: string;
+}
+
+// Partial declaration as it appears in archmap.yml — name/type may come from a ref file
+export interface RawInfraDecl {
+  id: string;
+  name?: string;
+  type?: InfraType;
+  technology?: string;
+  description?: string;
+  ref?: string;
+}
+
 // ─── Kafka (mirrored from @archmap/analyzer, kept local to avoid circular dep) ─
 
 export interface KafkaProducer {
@@ -73,6 +94,7 @@ export interface RepoConfig {
   depends_on?: string[];
   tags?: string[];
   node?: NodeConfig;
+  infrastructure?: RawInfraDecl[];
 }
 
 export interface AnalyzedService {
@@ -92,6 +114,7 @@ export interface AnalyzedService {
   kafkaProducers?: KafkaProducer[];
   kafkaConsumers?: KafkaConsumer[];
   nodeConfig?: NodeConfig;
+  infrastructure?: InfraNode[];
 }
 
 export interface ViewNode {
@@ -99,6 +122,9 @@ export interface ViewNode {
   type?: string;
   position: { x: number; y: number };
   data: Record<string, unknown>;
+  parentId?: string;
+  extent?: "parent";
+  style?: Record<string, unknown>;
 }
 
 export interface ViewEdge {
@@ -107,6 +133,8 @@ export interface ViewEdge {
   target: string;
   label?: string;
   animated?: boolean;
+  markerEnd?: string;
+  type?: string;
 }
 
 export interface GraphView {
@@ -126,5 +154,6 @@ export interface GraphData {
     serviceFlow: GraphView;
     dataFlow: GraphView;
     functionFlow: GraphView;
+    containerDiagram: GraphView;
   };
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useMemo } from "react";
 import {
   ReactFlow,
   Background,
@@ -20,14 +20,131 @@ import { buildKindMap } from "@/lib/classify";
 import ServiceNode from "./nodes/ServiceNode";
 import DataTypeNode from "./nodes/DataTypeNode";
 import FunctionNode from "./nodes/FunctionNode";
+import DatabaseNode from "./nodes/DatabaseNode";
+import QueueNode from "./nodes/QueueNode";
+import CacheNode from "./nodes/CacheNode";
+import ExternalNode from "./nodes/ExternalNode";
 import ServiceSearch from "./ServiceSearch";
-import { applyDagreLayout } from "@/lib/layout";
+import { getLayoutedElements } from "@/lib/layout";
 
 const nodeTypes = {
   serviceNode: ServiceNode,
   dataTypeNode: DataTypeNode,
   functionNode: FunctionNode,
+  databaseNode: DatabaseNode,
+  queueNode: QueueNode,
+  cacheNode: CacheNode,
+  externalNode: ExternalNode,
 };
+
+// ─── Edge routing helpers ─────────────────────────────────────────────────────
+
+/**
+ * Returns the absolute canvas center of a node. For child nodes (parentId set)
+ * the parent top-left is added so all positions share the same coordinate space.
+ */
+function getAbsoluteCenter(
+  nodeId: string,
+  nodeMap: Map<string, any>
+): { x: number; y: number } {
+  const n = nodeMap.get(nodeId);
+  if (!n) return { x: 0, y: 0 };
+  const w = n.measured?.width ?? 260;
+  const h = n.measured?.height ?? 160;
+  let x = (n.position?.x ?? 0) + w / 2;
+  let y = (n.position?.y ?? 0) + h / 2;
+  if (n.parentId) {
+    const parent = nodeMap.get(n.parentId);
+    if (parent) {
+      x += parent.position?.x ?? 0;
+      y += parent.position?.y ?? 0;
+    }
+  }
+  return { x, y };
+}
+
+/**
+ * Assigns sourceHandle / targetHandle and enforces smoothstep routing so edges
+ * travel through the channels between nodes rather than crossing node boxes.
+ *
+ * A per-node per-handle occupancy counter distributes multiple edges that leave
+ * the same node on the same side to different dock points instead of stacking.
+ *
+ * Priority order for each direction:
+ *   going right  → right, bottom, top, left
+ *   going left   → left,  bottom, top, right
+ *   going down   → bottom, right, left, top
+ *   going up     → top,   right, left, bottom
+ */
+function routeEdges(edges: any[], nodeMap: Map<string, any>): any[] {
+  const usage = new Map<string, number>(); // `${nodeId}:${handleId}` → count
+
+  function inc(nodeId: string, handleId: string) {
+    const key = `${nodeId}:${handleId}`;
+    usage.set(key, (usage.get(key) ?? 0) + 1);
+  }
+
+  function pickHandle(nodeId: string, prefs: string[]): string {
+    let best = prefs[0];
+    let bestCount = usage.get(`${nodeId}:${best}`) ?? 0;
+    for (let i = 1; i < prefs.length; i++) {
+      const c = usage.get(`${nodeId}:${prefs[i]}`) ?? 0;
+      if (c < bestCount) { bestCount = c; best = prefs[i]; }
+    }
+    return best;
+  }
+
+  return edges.map((e) => {
+    const src = getAbsoluteCenter(e.source, nodeMap);
+    const tgt = getAbsoluteCenter(e.target, nodeMap);
+    const dx = tgt.x - src.x;
+    const dy = tgt.y - src.y;
+
+    let srcPrefs: string[];
+    let tgtPrefs: string[];
+
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      if (dx >= 0) {
+        srcPrefs = ["source-right", "source-bottom", "source-top", "source-left"];
+        tgtPrefs = ["target-left",  "target-bottom", "target-top", "target-right"];
+      } else {
+        srcPrefs = ["source-left",  "source-bottom", "source-top", "source-right"];
+        tgtPrefs = ["target-right", "target-bottom", "target-top", "target-left"];
+      }
+    } else {
+      if (dy >= 0) {
+        srcPrefs = ["source-bottom", "source-right", "source-left", "source-top"];
+        tgtPrefs = ["target-top",    "target-right", "target-left", "target-bottom"];
+      } else {
+        srcPrefs = ["source-top",    "source-right", "source-left", "source-bottom"];
+        tgtPrefs = ["target-bottom", "target-right", "target-left", "target-top"];
+      }
+    }
+
+    const sourceHandle = pickHandle(e.source, srcPrefs);
+    const targetHandle = pickHandle(e.target, tgtPrefs);
+    inc(e.source, sourceHandle);
+    inc(e.target, targetHandle);
+
+    // markerEnd: accept both string "arrow" (from graph-builder) and already-
+    // converted { type: "arrow" } objects (when re-routing after auto-layout).
+    const markerEnd = e.markerEnd
+      ? typeof e.markerEnd === "string" ? { type: e.markerEnd } : e.markerEnd
+      : undefined;
+
+    return {
+      ...e,
+      // smoothstep produces orthogonal (right-angle) paths that travel through
+      // the channels between nodes instead of cutting diagonally across them.
+      type: e.type ?? "smoothstep",
+      sourceHandle,
+      targetHandle,
+...(markerEnd ? { markerEnd } : {}),
+    };
+  });
+}
+
+// ─── Canvas component ─────────────────────────────────────────────────────────
 
 interface Props {
   view: GraphViewData;
@@ -49,7 +166,7 @@ function GraphCanvas({
   onSelectedServiceChange,
   onDrillIn,
 }: Omit<Props, "serviceCount">) {
-  // Compute filtered nodes/edges for functionFlow
+  // ── 1. Filter nodes and edges ─────────────────────────────────────────────
   const serviceFilteredNodes =
     viewType === "functionFlow" && selectedServiceId
       ? view.nodes.filter((n) => (n.data as any).serviceId === selectedServiceId)
@@ -64,7 +181,6 @@ function GraphCanvas({
         )
       : view.edges;
 
-  // Filter orphan nodes in functionFlow
   const filteredNodes = viewType === "functionFlow"
     ? (() => {
         const connectedIds = new Set(filteredEdges.flatMap((e) => [e.source, e.target]));
@@ -72,7 +188,7 @@ function GraphCanvas({
       })()
     : serviceFilteredNodes;
 
-  // Enrich function nodes with kind metadata
+  // ── 2. Enrich and assign z-index ──────────────────────────────────────────
   const enrichedNodes = viewType === "functionFlow"
     ? (() => {
         const kindMap = buildKindMap(filteredNodes, allServices);
@@ -83,20 +199,49 @@ function GraphCanvas({
       })()
     : filteredNodes;
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(enrichedNodes as any);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(filteredEdges as any);
+  // ── 3. Dagre layout (memoised — re-runs only when view data changes) ───────
+  // Applying layout before routing means handle selection is based on the
+  // final node positions, so edge dock assignments are accurate.
+  // On first render node.measured is undefined; dagre uses the hardcoded
+  // defaults (260×160). The Auto Layout button re-runs with real dimensions.
+  const laidNodes = useMemo(() => {
+    const { nodes } = getLayoutedElements(enrichedNodes as any, filteredEdges as any);
+    return nodes;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, viewType, selectedServiceId]);
+
+  // ── 4. Route edges using laid-out positions ───────────────────────────────
+  const rfEdges = useMemo(() => {
+    const map = new Map((laidNodes as any[]).map((n: any) => [n.id, n]));
+    return routeEdges(filteredEdges, map);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [laidNodes]);
+
+  // ── 5. React Flow state ───────────────────────────────────────────────────
+  const [nodes, setNodes, onNodesChange] = useNodesState(laidNodes as any);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(rfEdges as any);
   const { fitView } = useReactFlow();
 
+  // Sync state whenever the laid-out data changes (view switch, filter change)
   useEffect(() => {
-    setNodes(enrichedNodes as any);
-    setEdges(filteredEdges as any);
-  }, [view, viewType, selectedServiceId, setNodes, setEdges]); // eslint-disable-line react-hooks/exhaustive-deps
+    setNodes(laidNodes as any);
+    setEdges(rfEdges as any);
+    setTimeout(() => fitView({ duration: 300 }), 50);
+  }, [laidNodes, rfEdges, setNodes, setEdges, fitView]);
 
+  // Manual re-layout: uses measured dimensions from current state and re-routes
+  // edges from the original (unprocessed) filteredEdges to avoid double-
+  // converting markerEnd.
   const handleAutoLayout = useCallback(() => {
-    const laid = applyDagreLayout(nodes as any, edges as any);
+    // Re-run with actual measured dimensions (available after first render).
+    const { nodes: laid } = getLayoutedElements(nodes as any, filteredEdges as any);
+    const nm = new Map(laid.map((n: any) => [n.id, n]));
+    const rerouted = routeEdges(filteredEdges, nm);
     setNodes(laid as any);
+    setEdges(rerouted as any);
     setTimeout(() => fitView({ duration: 400 }), 50);
-  }, [nodes, edges, setNodes, fitView]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes, filteredEdges, setNodes, setEdges, fitView]);
 
   return (
     <ReactFlow
@@ -150,6 +295,8 @@ function GraphCanvas({
   );
 }
 
+// ─── Public component ─────────────────────────────────────────────────────────
+
 export default function GraphView({
   view,
   viewType,
@@ -164,7 +311,6 @@ export default function GraphView({
     return (
       <div className="w-full h-full flex items-center justify-center text-gray-500">
         <div className="text-center">
-          <div className="text-4xl mb-4">📡</div>
           <p className="text-lg font-medium text-gray-400">No graph data yet</p>
           <p className="text-sm mt-1">Run the scanner to generate your architecture map</p>
         </div>
@@ -172,7 +318,6 @@ export default function GraphView({
     );
   }
 
-  // Function flow empty state when no service selected
   if (viewType === "functionFlow" && !selectedServiceId) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 gap-4">
@@ -201,6 +346,8 @@ export default function GraphView({
               ? "No DTOs/data types detected"
               : viewType === "functionFlow"
               ? "No functions detected in scanned services"
+              : viewType === "containerDiagram"
+              ? "No infrastructure declared in archmap.yml files"
               : "No services detected"}
           </p>
         </div>

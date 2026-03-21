@@ -21,6 +21,7 @@ function getGraphData(): GraphData {
         serviceFlow: EMPTY_VIEW,
         dataFlow: EMPTY_VIEW,
         functionFlow: EMPTY_VIEW,
+        containerDiagram: EMPTY_VIEW,
       },
     };
   }
