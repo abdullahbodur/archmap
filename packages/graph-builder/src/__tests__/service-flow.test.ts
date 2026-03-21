@@ -97,4 +97,22 @@ describe("buildServiceFlow", () => {
     // Both nodes should have valid positions assigned
     expect(nodes.every((n) => typeof n.position.x === "number" && typeof n.position.y === "number")).toBe(true);
   });
+
+  it("sets markerEnd: arrow on dependsOn edges", () => {
+    const services = [
+      makeService({ id: "a", name: "A", dependsOn: ["b"] }),
+      makeService({ id: "b", name: "B" }),
+    ];
+    const { edges } = buildServiceFlow(services);
+    expect(edges[0].markerEnd).toBe("arrow");
+  });
+
+  it("sets markerEnd: arrow on kafka edges", () => {
+    const services = [
+      makeService({ id: "a", name: "A", kafkaProducers: [{ topic: "events" }] }),
+      makeService({ id: "b", name: "B", kafkaConsumers: [{ topics: ["events"], handlerMethod: "handle" }] }),
+    ];
+    const { edges } = buildServiceFlow(services);
+    expect(edges.every((e) => e.markerEnd === "arrow")).toBe(true);
+  });
 });
