@@ -133,6 +133,7 @@ function routeEdges(edges: any[], nodeMap: Map<string, any>): any[] {
       ...e,
       sourceHandle,
       targetHandle,
+      zIndex: 1, // render above group container boxes (zIndex 0) but below nodes (zIndex 2)
       ...(e.markerEnd ? { markerEnd: { type: e.markerEnd } } : {}),
     };
   });
@@ -194,16 +195,23 @@ function GraphCanvas({
       })()
     : filteredNodes;
 
+  // Assign z-index so edges (zIndex 1) appear above group containers (0)
+  // but below service/infra nodes (2).
+  const zIndexedNodes = enrichedNodes.map((n) => ({
+    ...n,
+    zIndex: (n as any).type === "group" ? 0 : 2,
+  }));
+
   // Build node map for edge routing, then route edges to correct dock points
-  const nodeMap = new Map(enrichedNodes.map((n) => [n.id, n]));
+  const nodeMap = new Map(zIndexedNodes.map((n) => [n.id, n]));
   const rfEdges = routeEdges(filteredEdges, nodeMap);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(enrichedNodes as any);
+  const [nodes, setNodes, onNodesChange] = useNodesState(zIndexedNodes as any);
   const [edges, setEdges, onEdgesChange] = useEdgesState(rfEdges as any);
   const { fitView } = useReactFlow();
 
   useEffect(() => {
-    setNodes(enrichedNodes as any);
+    setNodes(zIndexedNodes as any);
     setEdges(rfEdges as any);
   }, [view, viewType, selectedServiceId, setNodes, setEdges]); // eslint-disable-line react-hooks/exhaustive-deps
 
