@@ -37,6 +37,109 @@ const nodeTypes = {
   externalNode: ExternalNode,
 };
 
+// ─── Edge routing helpers ─────────────────────────────────────────────────────
+
+/**
+ * Returns the absolute canvas center of a node. For child nodes (parentId set)
+ * the parent's top-left is added so positions are in the same coordinate space.
+ */
+function getAbsoluteCenter(
+  nodeId: string,
+  nodeMap: Map<string, any>
+): { x: number; y: number } {
+  const n = nodeMap.get(nodeId);
+  if (!n) return { x: 0, y: 0 };
+  const w = n.measured?.width ?? 260;
+  const h = n.measured?.height ?? 160;
+  let x = (n.position?.x ?? 0) + w / 2;
+  let y = (n.position?.y ?? 0) + h / 2;
+  if (n.parentId) {
+    const parent = nodeMap.get(n.parentId);
+    if (parent) {
+      x += parent.position?.x ?? 0;
+      y += parent.position?.y ?? 0;
+    }
+  }
+  return { x, y };
+}
+
+/**
+ * Assigns sourceHandle / targetHandle for every edge so connections attach to
+ * the correct dock point. Uses a per-node per-handle occupancy counter so that
+ * when multiple edges share the same node side, they are distributed to other
+ * available docks instead of all stacking on one point.
+ *
+ * Priority order for each direction:
+ *   going right  → right, bottom, top, left
+ *   going left   → left,  bottom, top, right
+ *   going down   → bottom, right, left, top
+ *   going up     → top,   right, left, bottom
+ */
+function routeEdges(edges: any[], nodeMap: Map<string, any>): any[] {
+  const usage = new Map<string, number>(); // key: `${nodeId}:${handleId}`
+
+  function inc(nodeId: string, handleId: string) {
+    const key = `${nodeId}:${handleId}`;
+    usage.set(key, (usage.get(key) ?? 0) + 1);
+  }
+
+  function pickHandle(nodeId: string, prefs: string[]): string {
+    let best = prefs[0];
+    let bestCount = usage.get(`${nodeId}:${best}`) ?? 0;
+    for (let i = 1; i < prefs.length; i++) {
+      const c = usage.get(`${nodeId}:${prefs[i]}`) ?? 0;
+      if (c < bestCount) {
+        bestCount = c;
+        best = prefs[i];
+      }
+    }
+    return best;
+  }
+
+  return edges.map((e) => {
+    const src = getAbsoluteCenter(e.source, nodeMap);
+    const tgt = getAbsoluteCenter(e.target, nodeMap);
+    const dx = tgt.x - src.x;
+    const dy = tgt.y - src.y;
+
+    let srcPrefs: string[];
+    let tgtPrefs: string[];
+
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      if (dx >= 0) {
+        srcPrefs = ["source-right", "source-bottom", "source-top", "source-left"];
+        tgtPrefs = ["target-left", "target-bottom", "target-top", "target-right"];
+      } else {
+        srcPrefs = ["source-left", "source-bottom", "source-top", "source-right"];
+        tgtPrefs = ["target-right", "target-bottom", "target-top", "target-left"];
+      }
+    } else {
+      if (dy >= 0) {
+        srcPrefs = ["source-bottom", "source-right", "source-left", "source-top"];
+        tgtPrefs = ["target-top", "target-right", "target-left", "target-bottom"];
+      } else {
+        srcPrefs = ["source-top", "source-right", "source-left", "source-bottom"];
+        tgtPrefs = ["target-bottom", "target-right", "target-left", "target-top"];
+      }
+    }
+
+    const sourceHandle = pickHandle(e.source, srcPrefs);
+    const targetHandle = pickHandle(e.target, tgtPrefs);
+
+    inc(e.source, sourceHandle);
+    inc(e.target, targetHandle);
+
+    return {
+      ...e,
+      sourceHandle,
+      targetHandle,
+      ...(e.markerEnd ? { markerEnd: { type: e.markerEnd } } : {}),
+    };
+  });
+}
+
+// ─── Canvas component ─────────────────────────────────────────────────────────
+
 interface Props {
   view: GraphViewData;
   viewType: ViewTab;
@@ -91,53 +194,9 @@ function GraphCanvas({
       })()
     : filteredNodes;
 
-  // React Flow only auto-generates SVG arrow markers when markerEnd is an object
-  // { type: "arrow" }, not a plain string. Convert here so graph-builder stays
-  // framework-agnostic.
-  // Also assign sourceHandle/targetHandle based on relative node positions so
-  // edges attach to the correct dock point on each side.
+  // Build node map for edge routing, then route edges to correct dock points
   const nodeMap = new Map(enrichedNodes.map((n) => [n.id, n]));
-
-  function getAbsolutePos(nodeId: string): { x: number; y: number } {
-    const n = nodeMap.get(nodeId);
-    if (!n) return { x: 0, y: 0 };
-    let x = (n.position?.x ?? 0) + ((n as any).measured?.width ?? 260) / 2;
-    let y = (n.position?.y ?? 0) + ((n as any).measured?.height ?? 160) / 2;
-    // If node has a parent, add parent's absolute center offset
-    if ((n as any).parentId) {
-      const parent = getAbsolutePos((n as any).parentId);
-      const pn = nodeMap.get((n as any).parentId);
-      const pw = (pn as any)?.measured?.width ?? 260;
-      const ph = (pn as any)?.measured?.height ?? 160;
-      x += parent.x - pw / 2;
-      y += parent.y - ph / 2;
-    }
-    return { x, y };
-  }
-
-  const rfEdges = filteredEdges.map((e) => {
-    const src = getAbsolutePos(e.source);
-    const tgt = getAbsolutePos(e.target);
-    const dx = tgt.x - src.x;
-    const dy = tgt.y - src.y;
-    let sourceHandle: string;
-    let targetHandle: string;
-    if (Math.abs(dx) >= Math.abs(dy)) {
-      // Horizontal dominant
-      sourceHandle = dx >= 0 ? "source-right" : "source-left";
-      targetHandle = dx >= 0 ? "target-left" : "target-right";
-    } else {
-      // Vertical dominant
-      sourceHandle = dy >= 0 ? "source-bottom" : "source-top";
-      targetHandle = dy >= 0 ? "target-top" : "target-bottom";
-    }
-    return {
-      ...e,
-      sourceHandle,
-      targetHandle,
-      ...(e.markerEnd ? { markerEnd: { type: e.markerEnd } } : {}),
-    };
-  });
+  const rfEdges = routeEdges(filteredEdges, nodeMap);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(enrichedNodes as any);
   const [edges, setEdges, onEdgesChange] = useEdgesState(rfEdges as any);
@@ -205,6 +264,8 @@ function GraphCanvas({
     </ReactFlow>
   );
 }
+
+// ─── Public component ─────────────────────────────────────────────────────────
 
 export default function GraphView({
   view,
