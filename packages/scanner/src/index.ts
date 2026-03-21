@@ -310,8 +310,12 @@ async function runGithubScan(): Promise<{ services: AnalyzedService[]; repoCount
   const octokit = new Octokit({ auth: token });
 
   console.log(`Scanning GitHub org: ${org}`);
+  // Skip the repo this scanner is running in (e.g. the deployment repo)
+  const currentRepo = process.env.GITHUB_REPOSITORY?.split("/")[1];
+
   const repos = (await octokit.paginate(octokit.repos.listForOrg, { org, type: "all", per_page: 100 }))
-    .filter((r) => !r.archived && !r.fork);
+    .filter((r) => !r.archived && !r.fork)
+    .filter((r) => r.name !== currentRepo);
   console.log(`Found ${repos.length} repos`);
 
   const services: AnalyzedService[] = [];
