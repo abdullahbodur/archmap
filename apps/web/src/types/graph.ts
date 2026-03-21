@@ -1,0 +1,82 @@
+export interface Endpoint {
+  method: string;
+  path: string;
+  inputType?: string;
+  outputType?: string;
+}
+
+export interface DataTypeField {
+  name: string;
+  type: string;
+}
+
+export interface DataType {
+  name: string;
+  fields: DataTypeField[];
+  producedBy: string[];
+  consumedBy: string[];
+}
+
+export interface CrossServiceCall {
+  targetService: string;
+  targetServiceId?: string;
+  targetEndpoint?: string;
+  via?: string;
+}
+
+export interface ServiceFunction {
+  name: string;
+  signature: string;
+  callsOut: CrossServiceCall[];
+}
+
+export interface AnalyzedService {
+  id: string;
+  name: string;
+  repoName: string;
+  repoUrl: string;
+  language: string;
+  summary: string;
+  endpoints: Endpoint[];
+  dataTypes: DataType[];
+  functions: ServiceFunction[];
+  dependsOn: string[];
+  type?: "service" | "library" | "tool" | "infra";
+  domain?: string;
+  tags?: string[];
+}
+
+export interface ViewNode {
+  id: string;
+  type?: string;
+  position: { x: number; y: number };
+  data: Record<string, unknown>;
+}
+
+export interface ViewEdge {
+  id: string;
+  source: string;
+  target: string;
+  label?: string;
+  animated?: boolean;
+}
+
+export interface GraphView {
+  nodes: ViewNode[];
+  edges: ViewEdge[];
+}
+
+export interface GraphData {
+  generatedAt: string | null;
+  meta: {
+    org: string;
+    repoCount: number;
+    serviceCount: number;
+  };
+  services: AnalyzedService[];
+  views: {
+    serviceFlow: GraphView;
+    dataFlow: GraphView;
+    functionFlow: GraphView;
+  };
+}

@@ -1,0 +1,63 @@
+name: ArchMap
+description: Scan a GitHub org and generate an architecture map
+branding:
+  icon: map
+  color: blue
+
+inputs:
+  github_token:
+    description: GitHub token with org read access
+    required: true
+  github_org:
+    description: GitHub org to scan
+    required: true
+  output_path:
+    description: Directory (relative to workspace) to write static files and graph.json
+    required: false
+    default: archmap-out
+
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v4
+      with: { version: 9 }
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+        cache: pnpm
+        cache-dependency-path: ${{ github.action_path }}/pnpm-lock.yaml
+
+    - name: Install dependencies
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: pnpm install --frozen-lockfile
+
+    - name: Build packages
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: pnpm build --filter @archmap/graph-builder --filter @archmap/deployers
+
+    - name: Run scanner
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        GITHUB_ORG: ${{ inputs.github_org }}
+        DEPLOYER: files
+        OUTPUT_DIR: ${{ github.workspace }}/${{ inputs.output_path }}
+      run: pnpm --filter @archmap/scanner scan
+
+    - name: Build web app
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      env:
+        ARCHMAP_DATA_PATH: ${{ github.workspace }}/${{ inputs.output_path }}/graph.json
+      run: pnpm --filter @archmap/web build
+
+    - name: Copy static output to workspace
+      shell: bash
+      run: |
+        mkdir -p "$GITHUB_WORKSPACE/${{ inputs.output_path }}"
+        cp -r "${{ github.action_path }}/apps/web/out/." \
+              "$GITHUB_WORKSPACE/${{ inputs.output_path }}/"

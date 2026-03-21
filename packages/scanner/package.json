@@ -1,0 +1,22 @@
+{
+  "name": "@archmap/scanner",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "scan": "tsx src/index.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@octokit/rest": "^21.0.0",
+    "@archmap/graph-builder": "workspace:*",
+    "@archmap/deployers": "workspace:*",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0",
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0",
+    "@types/js-yaml": "^4.0.0"
+  }
+}
