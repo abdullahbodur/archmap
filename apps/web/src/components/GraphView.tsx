@@ -91,13 +91,20 @@ function GraphCanvas({
       })()
     : filteredNodes;
 
+  // React Flow only auto-generates SVG arrow markers when markerEnd is an object
+  // { type: "arrow" }, not a plain string. Convert here so graph-builder stays
+  // framework-agnostic.
+  const rfEdges = filteredEdges.map((e) =>
+    e.markerEnd ? { ...e, markerEnd: { type: e.markerEnd } } : e
+  );
+
   const [nodes, setNodes, onNodesChange] = useNodesState(enrichedNodes as any);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(filteredEdges as any);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(rfEdges as any);
   const { fitView } = useReactFlow();
 
   useEffect(() => {
     setNodes(enrichedNodes as any);
-    setEdges(filteredEdges as any);
+    setEdges(rfEdges as any);
   }, [view, viewType, selectedServiceId, setNodes, setEdges]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAutoLayout = useCallback(() => {
