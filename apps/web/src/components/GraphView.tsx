@@ -139,10 +139,7 @@ function routeEdges(edges: any[], nodeMap: Map<string, any>): any[] {
       type: e.type ?? "smoothstep",
       sourceHandle,
       targetHandle,
-      // zIndex 1 → edges render above group container boxes (zIndex 0) but
-      // below service/infra nodes (zIndex 2)
-      zIndex: 1,
-      ...(markerEnd ? { markerEnd } : {}),
+...(markerEnd ? { markerEnd } : {}),
     };
   });
 }
@@ -202,22 +199,13 @@ function GraphCanvas({
       })()
     : filteredNodes;
 
-  // Group containers → 0, everything else → 2.
-  // Edges get zIndex 1 in routeEdges, so they always appear above groups but
-  // below service/infra nodes.
-  const zIndexedNodes = enrichedNodes.map((n) => ({
-    ...n,
-    zIndex: (n as any).type === "group" ? 0 : 2,
-  }));
-
   // ── 3. Dagre layout (memoised — re-runs only when view data changes) ───────
   // Applying layout before routing means handle selection is based on the
   // final node positions, so edge dock assignments are accurate.
   // On first render node.measured is undefined; dagre uses the hardcoded
   // defaults (260×160). The Auto Layout button re-runs with real dimensions.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const laidNodes = useMemo(
-    () => applyDagreLayout(zIndexedNodes as any, filteredEdges as any),
+    () => applyDagreLayout(enrichedNodes as any, filteredEdges as any),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [view, viewType, selectedServiceId]
   );
