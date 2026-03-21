@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm --filter @archmap/web dev)",
+      "WebFetch(domain:localhost)"
+    ]
+  }
+}
