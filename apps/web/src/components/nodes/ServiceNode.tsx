@@ -2,7 +2,7 @@
 
 import { Handle, Position } from "@xyflow/react";
 import type { NodeProps } from "@xyflow/react";
-import type { Endpoint } from "@/types/graph";
+import type { Endpoint, NodeConfig } from "@/types/graph";
 
 interface ServiceNodeData {
   name: string;
@@ -14,6 +14,7 @@ interface ServiceNodeData {
   serviceType?: "service" | "library" | "tool" | "infra";
   domain?: string;
   tags?: string[];
+  nodeConfig?: NodeConfig;
 }
 
 const TYPE_COLORS: Record<string, string> = {
@@ -25,16 +26,38 @@ const TYPE_COLORS: Record<string, string> = {
 
 export default function ServiceNode({ data }: NodeProps) {
   const d = data as unknown as ServiceNodeData;
+  const nc = d.nodeConfig;
+  const customColor = nc?.color;
   const typeColor = d.serviceType ? (TYPE_COLORS[d.serviceType] ?? "bg-gray-800 text-gray-400") : null;
+
+  const borderStyle = customColor ? { borderColor: customColor } : undefined;
+  const badgeBgStyle = customColor
+    ? { backgroundColor: customColor + "33", color: customColor }
+    : undefined;
+
+  const displaySummary = nc?.description ?? d.summary;
 
   return (
     <>
       <Handle type="target" position={Position.Top} />
-      <div className="bg-gray-900 border border-gray-700 rounded-lg p-3 min-w-[200px] max-w-[260px] shadow-lg">
+      <div
+        className="bg-gray-900 border border-gray-700 rounded-lg p-3 min-w-[200px] max-w-[260px] shadow-lg"
+        style={borderStyle}
+      >
         <div className="flex items-center justify-between gap-2 mb-1">
-          <span className="text-white font-semibold text-sm truncate">{d.name}</span>
+          <span className="text-white font-semibold text-sm truncate">
+            {nc?.icon && <span className="mr-1">{nc.icon}</span>}
+            {d.name}
+          </span>
           <div className="flex items-center gap-1 shrink-0">
-            {typeColor && (
+            {nc?.badge ? (
+              <span
+                className="text-xs px-1.5 py-0.5 rounded"
+                style={badgeBgStyle ?? { backgroundColor: "#1f2937", color: "#9ca3af" }}
+              >
+                {nc.badge}
+              </span>
+            ) : typeColor && (
               <span className={`text-xs px-1.5 py-0.5 rounded ${typeColor}`}>
                 {d.serviceType}
               </span>
@@ -49,8 +72,8 @@ export default function ServiceNode({ data }: NodeProps) {
         {d.domain && (
           <div className="text-gray-500 text-xs mb-1">{d.domain}</div>
         )}
-        {d.summary && (
-          <p className="text-gray-400 text-xs mb-2 line-clamp-2">{d.summary}</p>
+        {displaySummary && (
+          <p className="text-gray-400 text-xs mb-2 line-clamp-2">{displaySummary}</p>
         )}
         {d.endpoints && d.endpoints.length > 0 && (
           <ul className="space-y-0.5 mb-2">

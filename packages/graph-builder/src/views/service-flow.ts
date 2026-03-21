@@ -18,6 +18,7 @@ export function buildServiceFlow(services: AnalyzedService[]): GraphView {
       serviceType: svc.type,
       domain: svc.domain,
       tags: svc.tags,
+      nodeConfig: svc.nodeConfig,
     },
   }));
 

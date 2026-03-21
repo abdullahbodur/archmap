@@ -45,6 +45,13 @@ export interface KafkaConsumer {
   messageType?: string;
 }
 
+export interface NodeConfig {
+  color?: string;
+  icon?: string;
+  badge?: string;
+  description?: string;
+}
+
 export interface AnalyzedService {
   id: string;
   name: string;
@@ -61,6 +68,7 @@ export interface AnalyzedService {
   tags?: string[];
   kafkaProducers?: KafkaProducer[];
   kafkaConsumers?: KafkaConsumer[];
+  nodeConfig?: NodeConfig;
 }
 
 export interface ViewNode {

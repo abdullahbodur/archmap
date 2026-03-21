@@ -47,10 +47,18 @@ export interface CrossServiceCall {
   via?: string;
 }
 
+export interface BeanCall {
+  beanVariable: string;
+  methodName: string;
+}
+
 export interface ServiceFunction {
   name: string;
+  className?: string;
   signature: string;
   callsOut: CrossServiceCall[];
+  callsMethods?: string[];
+  callsBeanMethods?: BeanCall[];
 }
 
 export interface KafkaProducer {
@@ -66,6 +74,13 @@ export interface KafkaConsumer {
   handlerMethod: string;
   handlerClass?: string;
   messageType?: string;
+}
+
+export interface NodeConfig {
+  color?: string;
+  icon?: string;
+  badge?: string;
+  description?: string;
 }
 
 export interface AnalyzedService {
@@ -84,4 +99,5 @@ export interface AnalyzedService {
   tags?: string[];
   kafkaProducers?: KafkaProducer[];
   kafkaConsumers?: KafkaConsumer[];
+  nodeConfig?: NodeConfig;
 }

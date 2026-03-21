@@ -24,10 +24,18 @@ export interface CrossServiceCall {
   via?: string;            // e.g. "HTTP", "gRPC", "message queue"
 }
 
+export interface BeanCall {
+  beanVariable: string;
+  methodName: string;
+}
+
 export interface ServiceFunction {
   name: string;
+  className?: string;
   signature: string;
   callsOut: CrossServiceCall[];
+  callsMethods?: string[];       // same-class direct method calls
+  callsBeanMethods?: BeanCall[]; // calls on injected beans with specific method names
 }
 
 export type ServiceType = "service" | "library" | "tool" | "infra";
@@ -49,6 +57,13 @@ export interface KafkaConsumer {
   messageType?: string;
 }
 
+export interface NodeConfig {
+  color?: string;
+  icon?: string;
+  badge?: string;
+  description?: string;
+}
+
 export interface RepoConfig {
   name?: string;
   description?: string;
@@ -57,6 +72,7 @@ export interface RepoConfig {
   domain?: string;       // "group" accepted as alias during parsing
   depends_on?: string[];
   tags?: string[];
+  node?: NodeConfig;
 }
 
 export interface AnalyzedService {
@@ -75,6 +91,7 @@ export interface AnalyzedService {
   tags?: string[];
   kafkaProducers?: KafkaProducer[];
   kafkaConsumers?: KafkaConsumer[];
+  nodeConfig?: NodeConfig;
 }
 
 export interface ViewNode {

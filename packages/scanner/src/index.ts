@@ -30,6 +30,16 @@ function parseRepoConfig(text: string): RepoConfig | null {
       tags:        Array.isArray(parsed.tags)
                      ? (parsed.tags as unknown[]).filter((x): x is string => typeof x === "string")
                      : [],
+      node: (() => {
+        const n = parsed.node as Record<string, unknown> | undefined;
+        if (!n || typeof n !== "object") return undefined;
+        return {
+          color:       typeof n.color       === "string" ? n.color       : undefined,
+          icon:        typeof n.icon        === "string" ? n.icon        : undefined,
+          badge:       typeof n.badge       === "string" ? n.badge       : undefined,
+          description: typeof n.description === "string" ? n.description : undefined,
+        };
+      })(),
     };
   } catch {
     return null;
@@ -62,8 +72,11 @@ function buildAnalyzedService(
     })),
     functions: result.functions.map((fn) => ({
       name: fn.name,
+      className: fn.className,
       signature: fn.signature,
       callsOut: fn.callsServices.map((svc) => ({ targetService: svc })),
+      callsMethods: fn.callsMethods,
+      callsBeanMethods: fn.callsBeanMethods,
     })),
     dependsOn:      result.dependsOnServices,
     kafkaProducers: result.kafkaProducers,
@@ -93,6 +106,7 @@ function applyConfigOverrides(analyzed: AnalyzedService, config: RepoConfig | nu
   if (config.depends_on?.length) {
     analyzed.dependsOn = [...analyzed.dependsOn, ...config.depends_on];
   }
+  if (config.node) analyzed.nodeConfig = config.node;
 }
 
 function resolveServiceReferences(services: AnalyzedService[]): void {
