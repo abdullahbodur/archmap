@@ -12,7 +12,7 @@
     "scan": {
       "cache": false,
       "dependsOn": ["^build"],
-      "env": ["GITHUB_TOKEN", "GITHUB_ORG", "OUTPUT_DIR", "DEPLOYER"]
+      "env": ["GITHUB_TOKEN", "GITHUB_ORG", "OUTPUT_DIR", "DEPLOYER", "SCANNER_SOURCE", "SERVICES_DIR"]
     },
     "lint": {
       "dependsOn": ["^lint"]
