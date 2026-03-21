@@ -5,7 +5,7 @@ export type ViewTab = "serviceFlow" | "dataFlow" | "functionFlow";
 const TABS: { id: ViewTab; label: string; description: string }[] = [
   { id: "serviceFlow", label: "Service Flow", description: "Service dependencies" },
   { id: "dataFlow", label: "Data Flow", description: "DTO contracts" },
-  { id: "functionFlow", label: "Function Flow", description: "Cross-service calls" },
+  { id: "functionFlow", label: "Function Flow", description: "Intra-service method call graph" },
 ];
 
 interface Props {

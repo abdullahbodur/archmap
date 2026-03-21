@@ -64,12 +64,19 @@ export interface DetectedDataType {
 
 // ─── Functions ───────────────────────────────────────────────────────────────
 
+export interface BeanCall {
+  beanVariable: string;  // e.g. "orderService"
+  methodName: string;    // e.g. "initiateOrder"
+}
+
 export interface DetectedFunction {
   name: string;
   className: string;
   signature: string;
   returnType: string;
-  callsServices: string[];  // service-like names discovered in method body
+  callsServices: string[];      // service names (bean var names, suffix-stripped)
+  callsMethods: string[];       // same-class direct method calls (no dot prefix)
+  callsBeanMethods: BeanCall[]; // calls on injected service/repository beans with specific method
 }
 
 // ─── Result ──────────────────────────────────────────────────────────────────
