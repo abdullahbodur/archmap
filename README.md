@@ -2,7 +2,18 @@
 
 ArchMap scans a GitHub organization, extracts service topology from source code without running anything, and serves an interactive architecture graph in the browser.
 
-It reads Java and Kotlin files statically — no Docker, no databases, no running services required.
+It reads source files statically — no Docker, no databases, no running services required.
+
+## Language support
+
+| Language | Framework | Status |
+|----------|-----------|--------|
+| Java | Spring Boot | Supported |
+| Kotlin | Spring Boot | Supported |
+| Go | — | Planned |
+| Python | FastAPI, Django | Planned |
+| TypeScript / JavaScript | NestJS, Express | Planned |
+| C# | ASP.NET Core | Planned |
 
 ## What it produces
 
