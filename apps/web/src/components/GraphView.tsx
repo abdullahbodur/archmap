@@ -25,7 +25,7 @@ import QueueNode from "./nodes/QueueNode";
 import CacheNode from "./nodes/CacheNode";
 import ExternalNode from "./nodes/ExternalNode";
 import ServiceSearch from "./ServiceSearch";
-import { applyDagreLayout } from "@/lib/layout";
+import { getLayoutedElements } from "@/lib/layout";
 
 const nodeTypes = {
   serviceNode: ServiceNode,
@@ -204,11 +204,11 @@ function GraphCanvas({
   // final node positions, so edge dock assignments are accurate.
   // On first render node.measured is undefined; dagre uses the hardcoded
   // defaults (260×160). The Auto Layout button re-runs with real dimensions.
-  const laidNodes = useMemo(
-    () => applyDagreLayout(enrichedNodes as any, filteredEdges as any),
+  const laidNodes = useMemo(() => {
+    const { nodes } = getLayoutedElements(enrichedNodes as any, filteredEdges as any);
+    return nodes;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [view, viewType, selectedServiceId]
-  );
+  }, [view, viewType, selectedServiceId]);
 
   // ── 4. Route edges using laid-out positions ───────────────────────────────
   const rfEdges = useMemo(() => {
@@ -233,8 +233,9 @@ function GraphCanvas({
   // edges from the original (unprocessed) filteredEdges to avoid double-
   // converting markerEnd.
   const handleAutoLayout = useCallback(() => {
-    const laid = applyDagreLayout(nodes as any, filteredEdges as any);
-    const nm = new Map((laid as any[]).map((n: any) => [n.id, n]));
+    // Re-run with actual measured dimensions (available after first render).
+    const { nodes: laid } = getLayoutedElements(nodes as any, filteredEdges as any);
+    const nm = new Map(laid.map((n: any) => [n.id, n]));
     const rerouted = routeEdges(filteredEdges, nm);
     setNodes(laid as any);
     setEdges(rerouted as any);
