@@ -94,9 +94,50 @@ function GraphCanvas({
   // React Flow only auto-generates SVG arrow markers when markerEnd is an object
   // { type: "arrow" }, not a plain string. Convert here so graph-builder stays
   // framework-agnostic.
-  const rfEdges = filteredEdges.map((e) =>
-    e.markerEnd ? { ...e, markerEnd: { type: e.markerEnd } } : e
-  );
+  // Also assign sourceHandle/targetHandle based on relative node positions so
+  // edges attach to the correct dock point on each side.
+  const nodeMap = new Map(enrichedNodes.map((n) => [n.id, n]));
+
+  function getAbsolutePos(nodeId: string): { x: number; y: number } {
+    const n = nodeMap.get(nodeId);
+    if (!n) return { x: 0, y: 0 };
+    let x = (n.position?.x ?? 0) + ((n as any).measured?.width ?? 260) / 2;
+    let y = (n.position?.y ?? 0) + ((n as any).measured?.height ?? 160) / 2;
+    // If node has a parent, add parent's absolute center offset
+    if ((n as any).parentId) {
+      const parent = getAbsolutePos((n as any).parentId);
+      const pn = nodeMap.get((n as any).parentId);
+      const pw = (pn as any)?.measured?.width ?? 260;
+      const ph = (pn as any)?.measured?.height ?? 160;
+      x += parent.x - pw / 2;
+      y += parent.y - ph / 2;
+    }
+    return { x, y };
+  }
+
+  const rfEdges = filteredEdges.map((e) => {
+    const src = getAbsolutePos(e.source);
+    const tgt = getAbsolutePos(e.target);
+    const dx = tgt.x - src.x;
+    const dy = tgt.y - src.y;
+    let sourceHandle: string;
+    let targetHandle: string;
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      // Horizontal dominant
+      sourceHandle = dx >= 0 ? "source-right" : "source-left";
+      targetHandle = dx >= 0 ? "target-left" : "target-right";
+    } else {
+      // Vertical dominant
+      sourceHandle = dy >= 0 ? "source-bottom" : "source-top";
+      targetHandle = dy >= 0 ? "target-top" : "target-bottom";
+    }
+    return {
+      ...e,
+      sourceHandle,
+      targetHandle,
+      ...(e.markerEnd ? { markerEnd: { type: e.markerEnd } } : {}),
+    };
+  });
 
   const [nodes, setNodes, onNodesChange] = useNodesState(enrichedNodes as any);
   const [edges, setEdges, onEdgesChange] = useEdgesState(rfEdges as any);

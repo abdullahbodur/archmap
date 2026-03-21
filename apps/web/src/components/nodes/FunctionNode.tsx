@@ -96,7 +96,10 @@ export default function FunctionNode({ data }: NodeProps) {
 
   return (
     <>
-      <Handle type="target" position={Position.Top} />
+      <Handle type="target" position={Position.Top}    id="target-top" />
+      <Handle type="target" position={Position.Left}   id="target-left" />
+      <Handle type="target" position={Position.Right}  id="target-right" />
+      <Handle type="target" position={Position.Bottom} id="target-bottom" />
       <div
         className={`bg-gray-900 border rounded-lg overflow-hidden min-w-[200px] max-w-[300px] shadow-lg ${style.border}`}
       >
@@ -146,7 +149,10 @@ export default function FunctionNode({ data }: NodeProps) {
           </div>
         </div>
       </div>
-      <Handle type="source" position={Position.Bottom} />
+      <Handle type="source" position={Position.Top}    id="source-top" />
+      <Handle type="source" position={Position.Left}   id="source-left" />
+      <Handle type="source" position={Position.Right}  id="source-right" />
+      <Handle type="source" position={Position.Bottom} id="source-bottom" />
     </>
   );
 }
