@@ -36,7 +36,7 @@ runs:
     - name: Build packages
       shell: bash
       working-directory: ${{ github.action_path }}
-      run: pnpm build --filter @archmap/graph-builder --filter @archmap/deployers
+      run: pnpm build --filter @archmap/analyzer --filter @archmap/graph-builder --filter @archmap/deployers
 
     - name: Run scanner
       shell: bash

@@ -32,6 +32,23 @@ export interface ServiceFunction {
 
 export type ServiceType = "service" | "library" | "tool" | "infra";
 
+// ─── Kafka (mirrored from @archmap/analyzer, kept local to avoid circular dep) ─
+
+export interface KafkaProducer {
+  topic: string;
+  messageType?: string;
+  inClass?: string;
+  inMethod?: string;
+}
+
+export interface KafkaConsumer {
+  topics: string[];
+  groupId?: string;
+  handlerMethod: string;
+  handlerClass?: string;
+  messageType?: string;
+}
+
 export interface RepoConfig {
   name?: string;
   description?: string;
@@ -56,6 +73,8 @@ export interface AnalyzedService {
   type?: ServiceType;
   domain?: string;
   tags?: string[];
+  kafkaProducers?: KafkaProducer[];
+  kafkaConsumers?: KafkaConsumer[];
 }
 
 export interface ViewNode {

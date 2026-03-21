@@ -30,6 +30,21 @@ export interface ServiceFunction {
   callsOut: CrossServiceCall[];
 }
 
+export interface KafkaProducer {
+  topic: string;
+  messageType?: string;
+  inClass?: string;
+  inMethod?: string;
+}
+
+export interface KafkaConsumer {
+  topics: string[];
+  groupId?: string;
+  handlerMethod: string;
+  handlerClass?: string;
+  messageType?: string;
+}
+
 export interface AnalyzedService {
   id: string;
   name: string;
@@ -44,6 +59,8 @@ export interface AnalyzedService {
   type?: "service" | "library" | "tool" | "infra";
   domain?: string;
   tags?: string[];
+  kafkaProducers?: KafkaProducer[];
+  kafkaConsumers?: KafkaConsumer[];
 }
 
 export interface ViewNode {

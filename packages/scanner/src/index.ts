@@ -4,38 +4,14 @@ import { load as loadYaml } from "js-yaml";
 import { buildAllViews } from "@archmap/graph-builder";
 import type { AnalyzedService } from "@archmap/graph-builder";
 import { createDeployer } from "@archmap/deployers";
+import { analyzeSpringBoot } from "@archmap/analyzer";
+import type { FileContent } from "@archmap/analyzer";
 import type { GraphData, RepoConfig } from "./types";
 
-interface DetectedService {
-  id: string;
-  name: string;
-  summary: string;
-  endpoints: never[];
-  dataTypes: never[];
-  functions: never[];
-  dependsOn: string[];
-}
-
-function stubAnalyzeRepo(repo: {
-  name: string;
-  description: string | null;
-  language: string | null;
-}): DetectedService[] {
-  return [
-    {
-      id: repo.name,
-      name: repo.name,
-      summary: repo.description ?? "",
-      endpoints: [],
-      dataTypes: [],
-      functions: [],
-      dependsOn: [],
-    },
-  ];
-}
+// ─── Env ─────────────────────────────────────────────────────────────────────
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN!;
-const GITHUB_ORG = process.env.GITHUB_ORG!;
+const GITHUB_ORG   = process.env.GITHUB_ORG!;
 
 if (!GITHUB_TOKEN || !GITHUB_ORG) {
   console.error("Missing GITHUB_TOKEN or GITHUB_ORG env vars");
@@ -71,10 +47,8 @@ async function getRepoConfig(owner: string, repo: string): Promise<RepoConfig | 
         ? (parsed.type as RepoConfig["type"])
         : undefined,
       domain:
-        typeof parsed.domain === "string"
-          ? parsed.domain
-          : typeof parsed.group === "string"
-          ? parsed.group
+        typeof parsed.domain === "string" ? parsed.domain
+          : typeof parsed.group === "string" ? parsed.group
           : undefined,
       depends_on: Array.isArray(parsed.depends_on)
         ? (parsed.depends_on as unknown[]).filter((x): x is string => typeof x === "string")
@@ -84,11 +58,87 @@ async function getRepoConfig(owner: string, repo: string): Promise<RepoConfig | 
         : [],
     };
   } catch {
-    return null; // 404 or parse error → treat as no config
+    return null;
   }
 }
 
-// ─── Stage 2: Analyze + resolve references ───────────────────────────────────
+// ─── Spring Boot detection ───────────────────────────────────────────────────
+
+async function isSpringBootRepo(owner: string, repo: string): Promise<boolean> {
+  // Check pom.xml
+  try {
+    const { data } = await octokit.repos.getContent({ owner, repo, path: "pom.xml" });
+    if ("content" in data) {
+      const xml = Buffer.from(data.content, "base64").toString("utf-8");
+      if (xml.includes("spring-boot")) return true;
+    }
+  } catch { /* no pom.xml */ }
+
+  // Check build.gradle / build.gradle.kts
+  for (const buildFile of ["build.gradle", "build.gradle.kts"]) {
+    try {
+      const { data } = await octokit.repos.getContent({ owner, repo, path: buildFile });
+      if ("content" in data) {
+        const gradle = Buffer.from(data.content, "base64").toString("utf-8");
+        if (gradle.includes("spring-boot")) return true;
+      }
+    } catch { /* not found */ }
+  }
+
+  return false;
+}
+
+// ─── Fetch source files via Git Trees API ────────────────────────────────────
+
+const MAX_SOURCE_FILES = 200;
+
+async function fetchSpringSourceFiles(
+  owner: string,
+  repo: string,
+  defaultBranch: string
+): Promise<FileContent[]> {
+  let tree: Awaited<ReturnType<typeof octokit.git.getTree>>["data"]["tree"];
+
+  try {
+    const { data } = await octokit.git.getTree({
+      owner, repo, tree_sha: defaultBranch, recursive: "1",
+    });
+    if (data.truncated) {
+      console.warn(`  ⚠ Tree truncated for ${repo} — some files may be missing`);
+    }
+    tree = data.tree;
+  } catch {
+    return [];
+  }
+
+  const sourceFiles = tree
+    .filter(
+      (f) =>
+        f.type === "blob" &&
+        /^src\/main\/.*\.(java|kt)$/.test(f.path ?? "")
+    )
+    .slice(0, MAX_SOURCE_FILES);
+
+  if (sourceFiles.length === 0) return [];
+  console.log(`  Fetching ${sourceFiles.length} source files…`);
+
+  const results: FileContent[] = [];
+  for (const file of sourceFiles) {
+    try {
+      const { data } = await octokit.repos.getContent({ owner, repo, path: file.path! });
+      if ("content" in data) {
+        results.push({
+          path: file.path!,
+          content: Buffer.from(data.content, "base64").toString("utf-8"),
+        });
+      }
+    } catch { /* skip unreadable files */ }
+  }
+
+  return results;
+}
+
+// ─── Stage 2: Resolve cross-service references ───────────────────────────────
 
 function resolveServiceReferences(services: AnalyzedService[]): void {
   const idByName = new Map<string, string>();
@@ -98,57 +148,17 @@ function resolveServiceReferences(services: AnalyzedService[]): void {
   }
 
   for (const svc of services) {
-    // Resolve dependsOn names → IDs
     svc.dependsOn = svc.dependsOn
       .map((dep) => idByName.get(dep.toLowerCase()) ?? dep)
-      // Keep only IDs that exist in our service set
       .filter((dep) => services.some((s) => s.id === dep));
 
-    // Resolve callsOut.targetService → targetServiceId
     for (const fn of svc.functions) {
       for (const call of fn.callsOut) {
         call.targetServiceId =
-          idByName.get(call.targetService.toLowerCase()) ??
-          call.targetService;
+          idByName.get(call.targetService.toLowerCase()) ?? call.targetService;
       }
     }
   }
-}
-
-function mapDetectedToAnalyzed(
-  detected: DetectedService,
-  repoName: string,
-  repoUrl: string,
-  language: string
-): AnalyzedService {
-  return {
-    id: detected.id,
-    name: detected.name,
-    repoName,
-    repoUrl,
-    language,
-    summary: detected.summary,
-    endpoints: detected.endpoints,
-    // Map DetectedDataType (has role) → DataType (has producedBy/consumedBy)
-    dataTypes: detected.dataTypes.map((dt) => ({
-      name: dt.name,
-      fields: dt.fields,
-      producedBy:
-        dt.role === "produced" || dt.role === "both" ? [detected.id] : [],
-      consumedBy:
-        dt.role === "consumed" || dt.role === "both" ? [detected.id] : [],
-    })),
-    functions: detected.functions.map((fn) => ({
-      name: fn.name,
-      signature: fn.signature,
-      callsOut: fn.callsOut.map((c) => ({
-        targetService: c.targetService,
-        targetEndpoint: c.targetEndpoint,
-        via: c.via,
-      })),
-    })),
-    dependsOn: detected.dependsOn,
-  };
 }
 
 // ─── Main ────────────────────────────────────────────────────────────────────
@@ -156,47 +166,104 @@ function mapDetectedToAnalyzed(
 async function main() {
   console.log(`Scanning org: ${GITHUB_ORG}`);
 
-  // Stage 1: fetch repos
   const repos = await getOrgRepos();
   console.log(`Found ${repos.length} repos`);
 
-  // Stage 2: analyze each repo → collect all AnalyzedServices
   const allServices: AnalyzedService[] = [];
 
   for (const repo of repos) {
+    // Per-repo config
     const config = await getRepoConfig(GITHUB_ORG, repo.name);
     if (config?.skip) {
       console.log(`Skipping ${repo.name} (archmap.yml: skip: true)`);
       continue;
     }
-    console.log(`Analyzing ${repo.name}...`);
 
-    const detected = stubAnalyzeRepo({
-      name: repo.name,
-      description: repo.description ?? null,
-      language: repo.language ?? null,
-    });
+    console.log(`Analyzing ${repo.name}…`);
 
-    for (const svc of detected) {
-      const analyzed = mapDetectedToAnalyzed(svc, repo.name, repo.html_url, repo.language ?? "unknown");
-      if (config) {
-        if (config.name) analyzed.name = config.name;
-        if (config.description) analyzed.summary = config.description;
-        if (config.type) analyzed.type = config.type;
-        if (config.domain) analyzed.domain = config.domain;
-        if (config.tags?.length) analyzed.tags = config.tags;
-        if (config.depends_on?.length) analyzed.dependsOn = [...analyzed.dependsOn, ...config.depends_on];
-      }
-      allServices.push(analyzed);
+    const springBoot = await isSpringBootRepo(GITHUB_ORG, repo.name);
+    let analyzed: AnalyzedService;
+
+    if (springBoot) {
+      console.log(`  Spring Boot detected`);
+      const files = await fetchSpringSourceFiles(GITHUB_ORG, repo.name, repo.default_branch ?? "main");
+      const result = analyzeSpringBoot({ repoName: repo.name, files });
+
+      analyzed = {
+        id: repo.name,
+        name: repo.name,
+        repoName: repo.name,
+        repoUrl: repo.html_url,
+        language: repo.language ?? result.language,
+        summary: repo.description ?? "",
+        endpoints: result.endpoints.map((e) => ({
+          method: e.method,
+          path: e.path,
+          inputType: e.inputType,
+          outputType: e.outputType,
+        })),
+        dataTypes: result.dataTypes.map((dt) => ({
+          name: dt.name,
+          fields: dt.fields,
+          producedBy:
+            dt.role === "entity" || dt.role === "event" ? [repo.name] : [],
+          consumedBy:
+            dt.role === "request" || dt.role === "response" || dt.role === "dto"
+              ? [repo.name]
+              : [],
+        })),
+        functions: result.functions.map((fn) => ({
+          name: fn.name,
+          signature: fn.signature,
+          callsOut: fn.callsServices.map((svc) => ({ targetService: svc })),
+        })),
+        dependsOn: result.dependsOnServices,
+        kafkaProducers: result.kafkaProducers,
+        kafkaConsumers: result.kafkaConsumers,
+      };
+
+      console.log(
+        `  → ${result.endpoints.length} endpoints, ` +
+        `${result.kafkaProducers.length} kafka producers, ` +
+        `${result.kafkaConsumers.length} kafka consumers, ` +
+        `${result.feignClients.length} feign clients`
+      );
+    } else {
+      // Fallback stub for non-Spring-Boot repos
+      analyzed = {
+        id: repo.name,
+        name: repo.name,
+        repoName: repo.name,
+        repoUrl: repo.html_url,
+        language: repo.language ?? "unknown",
+        summary: repo.description ?? "",
+        endpoints: [],
+        dataTypes: [],
+        functions: [],
+        dependsOn: [],
+      };
     }
+
+    // Apply archmap.yml overrides
+    if (config) {
+      if (config.name)          analyzed.name = config.name;
+      if (config.description)   analyzed.summary = config.description;
+      if (config.type)          analyzed.type = config.type;
+      if (config.domain)        analyzed.domain = config.domain;
+      if (config.tags?.length)  analyzed.tags = config.tags;
+      if (config.depends_on?.length) {
+        analyzed.dependsOn = [...analyzed.dependsOn, ...config.depends_on];
+      }
+    }
+
+    allServices.push(analyzed);
   }
 
   resolveServiceReferences(allServices);
 
-  // Stage 3: build graph views
+  // Build graph views
   const views = buildAllViews(allServices);
 
-  // Stage 4: write + deploy
   const timestamp = new Date().toISOString();
   const graph: GraphData = {
     generatedAt: timestamp,

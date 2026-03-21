@@ -11,6 +11,7 @@
     "@octokit/rest": "^21.0.0",
     "@archmap/graph-builder": "workspace:*",
     "@archmap/deployers": "workspace:*",
+    "@archmap/analyzer": "workspace:*",
     "js-yaml": "^4.1.0"
   },
   "devDependencies": {
