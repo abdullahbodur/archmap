@@ -41,7 +41,7 @@ runs:
       shell: bash
       working-directory: ${{ github.action_path }}
       env:
-        ARCHMAP_TOKEN: ${{ inputs.github_token }}
+        ORG_TOKEN: ${{ inputs.github_token }}
         GITHUB_ORG: ${{ inputs.github_org }}
         DEPLOYER: files
         OUTPUT_DIR: ${{ github.workspace }}/${{ inputs.output_path }}

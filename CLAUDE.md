@@ -53,7 +53,7 @@ pnpm install
 pnpm build --filter @archmap/analyzer --filter @archmap/graph-builder --filter @archmap/deployers
 
 # Run the scanner (needs env vars)
-GITHUB_TOKEN=... GITHUB_ORG=... pnpm --filter @archmap/scanner scan
+ORG_TOKEN=... GITHUB_ORG=... pnpm --filter @archmap/scanner scan
 
 # Run web dev server
 pnpm --filter @archmap/web dev
@@ -66,7 +66,7 @@ ARCHMAP_DATA_PATH=./data/graph.json pnpm --filter @archmap/web build
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `GITHUB_TOKEN` | Yes | GitHub PAT with org read access |
+| `ORG_TOKEN` | Yes | GitHub PAT with org read access |
 | `GITHUB_ORG` | Yes | GitHub org name to scan |
 | `ANTHROPIC_API_KEY` | Optional | Enables AI fallback analyzer |
 | `DEPLOYER` | Optional | `"git"` or `"files"` (default: `"git"`) |
@@ -95,12 +95,12 @@ The Spring Boot static analyzer (`packages/analyzer/src/spring/`) uses regex aga
 ```yaml
 - uses: your-org/archmap@main
   with:
-    github_token: ${{ secrets.GITHUB_TOKEN }}
+    github_token: ${{ secrets.ORG_TOKEN }}
     github_org: my-org
     output_path: archmap-out
 ```
 
-The daily scan workflow (`.github/workflows/daily-scan.yml`) runs at 2am UTC.
+The daily scan workflow (`.github/workflows/scan.yml`) runs at 3am UTC.
 
 ## Adding New Language Analyzers
 

@@ -247,10 +247,10 @@ async function runLocalScan(servicesDir: string): Promise<{ services: AnalyzedSe
 // ─── GitHub source ────────────────────────────────────────────────────────────
 
 function requireGithubEnv() {
-  const token = process.env.ARCHMAP_TOKEN ?? process.env.GITHUB_TOKEN;
+  const token = process.env.ORG_TOKEN ?? process.env.GITHUB_TOKEN;
   const org   = process.env.GITHUB_ORG;
   if (!token || !org) {
-    console.error("Missing ARCHMAP_TOKEN (or GITHUB_TOKEN) and GITHUB_ORG env vars");
+    console.error("Missing ORG_TOKEN (or GITHUB_TOKEN) and GITHUB_ORG env vars");
     process.exit(1);
   }
   return { token, org };

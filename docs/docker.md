@@ -6,7 +6,7 @@ The ArchMap scanner is available as a Docker image. It scans a GitHub org (or a 
 
 ```bash
 docker run --rm \
-  -e GITHUB_TOKEN=ghp_... \
+  -e ORG_TOKEN=ghp_... \
   -e GITHUB_ORG=your-org \
   -e DEPLOYER=files \
   -v $(pwd)/data:/data \
@@ -35,7 +35,7 @@ Each subdirectory of `/services` is treated as a separate service.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `GITHUB_TOKEN` | — | Required for GitHub org scan |
+| `ORG_TOKEN` | — | Required for GitHub org scan |
 | `GITHUB_ORG` | — | Organization to scan |
 | `SCANNER_SOURCE` | `github` | `github` or `local` |
 | `SERVICES_DIR` | `/services` | Root dir for local scan |
