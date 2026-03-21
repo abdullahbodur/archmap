@@ -20,6 +20,10 @@ import { buildKindMap } from "@/lib/classify";
 import ServiceNode from "./nodes/ServiceNode";
 import DataTypeNode from "./nodes/DataTypeNode";
 import FunctionNode from "./nodes/FunctionNode";
+import DatabaseNode from "./nodes/DatabaseNode";
+import QueueNode from "./nodes/QueueNode";
+import CacheNode from "./nodes/CacheNode";
+import ExternalNode from "./nodes/ExternalNode";
 import ServiceSearch from "./ServiceSearch";
 import { applyDagreLayout } from "@/lib/layout";
 
@@ -27,6 +31,10 @@ const nodeTypes = {
   serviceNode: ServiceNode,
   dataTypeNode: DataTypeNode,
   functionNode: FunctionNode,
+  databaseNode: DatabaseNode,
+  queueNode: QueueNode,
+  cacheNode: CacheNode,
+  externalNode: ExternalNode,
 };
 
 interface Props {
@@ -164,7 +172,6 @@ export default function GraphView({
     return (
       <div className="w-full h-full flex items-center justify-center text-gray-500">
         <div className="text-center">
-          <div className="text-4xl mb-4">📡</div>
           <p className="text-lg font-medium text-gray-400">No graph data yet</p>
           <p className="text-sm mt-1">Run the scanner to generate your architecture map</p>
         </div>
@@ -201,6 +208,8 @@ export default function GraphView({
               ? "No DTOs/data types detected"
               : viewType === "functionFlow"
               ? "No functions detected in scanned services"
+              : viewType === "containerDiagram"
+              ? "No infrastructure declared in archmap.yml files"
               : "No services detected"}
           </p>
         </div>

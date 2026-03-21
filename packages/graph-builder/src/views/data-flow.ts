@@ -63,6 +63,7 @@ export function buildDataFlow(services: AnalyzedService[]): GraphView {
       target,
       label: types.slice(0, 3).join(", ") + (types.length > 3 ? "…" : ""),
       animated: false,
+      markerEnd: "arrow",
     };
   });
 

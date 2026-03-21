@@ -35,3 +35,86 @@ ArchMap generates the graph from source code on a schedule. The graph is always 
 ## Incident investigation
 
 During an incident, the first question is often "what calls this service?" or "what does this service call?". The Service Flow graph answers both immediately. Engineers can trace the blast radius of a failing service or identify which upstream caller is sending unexpected traffic.
+
+---
+
+## Example organization: Commerce domain
+
+The `services/` directory in this repo contains a working two-service example that demonstrates the core features of ArchMap.
+
+### Services
+
+**Order Service** (`services/order-service`)
+
+Accepts order creation requests via REST, persists records to PostgreSQL, and publishes `order.created` events to Kafka.
+
+```yaml
+# services/order-service/archmap.yml
+name: Order Service
+type: service
+domain: commerce
+tags: [rest, kafka-producer, postgres, critical]
+infrastructure:
+  - id: orders-db
+    ref: ./infra/postgres-archmap.yml
+  - id: kafka
+    ref: ./infra/kafka-archmap.yml
+```
+
+**Inventory Service** (`services/inventory-service`)
+
+Consumes `order.created` events from Kafka and reserves stock in PostgreSQL.
+
+```yaml
+# services/inventory-service/archmap.yml
+name: Inventory Service
+type: service
+domain: commerce
+tags: [kafka-consumer, postgres]
+depends_on:
+  - order-service
+infrastructure:
+  - id: inventory-db
+    ref: ./infra/postgres-archmap.yml
+  - id: kafka
+    ref: ./infra/kafka-archmap.yml
+```
+
+### Infrastructure ref files
+
+Each service declares its infrastructure via ref files under `infra/`:
+
+```
+services/
+  order-service/
+    infra/
+      postgres-archmap.yml   # id: orders-db, type: database
+      kafka-archmap.yml      # id: kafka, type: queue
+  inventory-service/
+    infra/
+      postgres-archmap.yml   # id: inventory-db, type: database
+      kafka-archmap.yml      # id: kafka, type: queue  (same id — deduped in graph)
+```
+
+Both services reference `id: kafka` in their Kafka ref file. The Container Diagram deduplicates this into a single Kafka node with edges from both services.
+
+### Running the example locally
+
+```bash
+# From the archmap/ directory
+pnpm build --filter @archmap/analyzer --filter @archmap/graph-builder --filter @archmap/deployers
+
+SCANNER_SOURCE=local \
+SERVICES_DIR=../services \
+DEPLOYER=files \
+OUTPUT_DIR=./data \
+pnpm --filter @archmap/scanner scan
+
+ARCHMAP_DATA_PATH=./data/graph.json pnpm --filter @archmap/web dev
+```
+
+Open `http://localhost:3000` and switch to the **Container** tab to see:
+- A `commerce` domain boundary box containing both services
+- `Orders DB` and `Inventory DB` as database nodes (cyan cylinder)
+- A single shared `Apache Kafka` queue node (purple)
+- Directed edges labeled `persists to` and `subscribes to`

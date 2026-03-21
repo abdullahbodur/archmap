@@ -41,6 +41,7 @@ export function buildServiceFlow(services: AnalyzedService[]): GraphView {
           target: dep,
           label: "calls",
           animated: true,
+          markerEnd: "arrow",
         });
       }
     }
@@ -72,6 +73,7 @@ export function buildServiceFlow(services: AnalyzedService[]): GraphView {
             target: consumerId,
             label: producer.topic,
             animated: true,
+            markerEnd: "arrow",
           });
         }
       }

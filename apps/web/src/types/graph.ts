@@ -1,3 +1,14 @@
+export type InfraType = "database" | "queue" | "cache" | "external";
+
+export interface InfraNode {
+  id: string;
+  name: string;
+  type: InfraType;
+  technology?: string;
+  description?: string;
+  ref?: string;
+}
+
 export interface Endpoint {
   method: string;
   path: string;
@@ -69,6 +80,7 @@ export interface AnalyzedService {
   kafkaProducers?: KafkaProducer[];
   kafkaConsumers?: KafkaConsumer[];
   nodeConfig?: NodeConfig;
+  infrastructure?: InfraNode[];
 }
 
 export interface ViewNode {
@@ -76,6 +88,9 @@ export interface ViewNode {
   type?: string;
   position: { x: number; y: number };
   data: Record<string, unknown>;
+  parentId?: string;
+  extent?: "parent";
+  style?: Record<string, unknown>;
 }
 
 export interface ViewEdge {
@@ -84,6 +99,8 @@ export interface ViewEdge {
   target: string;
   label?: string;
   animated?: boolean;
+  markerEnd?: string;
+  type?: string;
 }
 
 export interface GraphView {
@@ -103,5 +120,6 @@ export interface GraphData {
     serviceFlow: GraphView;
     dataFlow: GraphView;
     functionFlow: GraphView;
+    containerDiagram: GraphView;
   };
 }

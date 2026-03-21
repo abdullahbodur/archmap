@@ -70,7 +70,7 @@ export default function ServiceSearch({ services, selectedId, onChange }: Props)
             className="text-gray-400 hover:text-gray-200 shrink-0"
             aria-label="Clear selection"
           >
-            ✕
+            x
           </button>
         )}
       </div>

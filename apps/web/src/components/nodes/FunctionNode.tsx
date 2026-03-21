@@ -43,7 +43,7 @@ const KIND_STYLES: Record<
   scheduler: {
     border: "border-orange-500",
     accent: "bg-orange-500",
-    badge: "⏰ SCHEDULED",
+    badge: "SCHEDULED",
     badgeClass: "bg-orange-900 text-orange-300",
   },
   service: {
