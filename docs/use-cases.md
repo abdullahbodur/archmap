@@ -40,7 +40,7 @@ During an incident, the first question is often "what calls this service?" or "w
 
 ## Example organization: Commerce domain
 
-The `services/` directory in this repo contains a working two-service example that demonstrates the core features of ArchMap.
+The `services/` directory of [github.com/docktail/archmap](https://github.com/docktail/archmap) contains a working two-service example that demonstrates the core features of ArchMap.
 
 ### Services
 
@@ -100,12 +100,15 @@ Both services reference `id: kafka` in their Kafka ref file. The Container Diagr
 
 ### Running the example locally
 
+Clone [github.com/docktail/archmap](https://github.com/docktail/archmap) and run:
+
 ```bash
 # From the archmap/ directory
+pnpm install
 pnpm build --filter @archmap/analyzer --filter @archmap/graph-builder --filter @archmap/deployers
 
 SCANNER_SOURCE=local \
-SERVICES_DIR=../services \
+SERVICES_DIR=./services \
 DEPLOYER=files \
 OUTPUT_DIR=./data \
 pnpm --filter @archmap/scanner scan

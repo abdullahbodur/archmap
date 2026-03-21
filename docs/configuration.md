@@ -1,5 +1,7 @@
 # Configuration Reference
 
+For a working end-to-end example see [github.com/docktail/archmap](https://github.com/docktail/archmap) — the `services/` directory contains Order Service and Inventory Service with annotated `archmap.yml` files and infrastructure ref files.
+
 ## archmap.yml
 
 Place an `archmap.yml` file in the root of any repository to control how ArchMap treats it during a scan.
