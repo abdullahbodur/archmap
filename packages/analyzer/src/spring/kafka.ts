@@ -12,10 +12,13 @@ function parseTopics(raw: string): string[] {
   const topics: string[] = [];
   const quoted = /["']([^"']+)["']/g;
   let m: RegExpExecArray | null;
-  while ((m = quoted.exec(raw)) !== null) topics.push(m[1]);
+  while ((m = quoted.exec(raw)) !== null) {
+    // Skip values that are property placeholders — handled below
+    if (!m[1].startsWith("${")) topics.push(m[1]);
+  }
   const prop = /\$\{([^}]+)\}/g;
   while ((m = prop.exec(raw)) !== null) topics.push(`\${${m[1]}}`);
-  return topics.filter(Boolean);
+  return [...new Set(topics.filter(Boolean))];
 }
 
 export function extractKafkaConsumers(file: FileContent): KafkaConsumer[] {
@@ -37,7 +40,7 @@ export function extractKafkaConsumers(file: FileContent): KafkaConsumer[] {
       ann += " " + lines[j].trim();
     }
 
-    const topicsM = ann.match(/topics\s*=\s*([^\n]+)/);
+    const topicsM = ann.match(/topics\s*=\s*(.+?)(?:,\s*\w+\s*=|$)/);
     const topics = topicsM ? parseTopics(topicsM[1]) : [];
     const groupM = ann.match(/groupId\s*=\s*["']([^"']+)["']/);
 
