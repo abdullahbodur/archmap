@@ -38,8 +38,11 @@ export interface CrossServiceCall {
 
 export interface ServiceFunction {
   name: string;
+  className?: string;
   signature: string;
   callsOut: CrossServiceCall[];
+  callsMethods?: string[];
+  callsBeanMethods?: { beanVariable: string; methodName: string }[];
 }
 
 export interface KafkaProducer {

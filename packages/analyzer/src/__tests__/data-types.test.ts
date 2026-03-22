@@ -90,3 +90,69 @@ public class CreateOrderRequest {
     }
   });
 });
+
+describe("extractDataTypes — enums", () => {
+  it("detects a basic enum and assigns role dto", () => {
+    const content = `
+public enum ReservationStatus {
+    RESERVED,
+    INSUFFICIENT_STOCK,
+    RELEASED,
+    FULFILLED
+}`;
+    const result = extractDataTypes({ path: "ReservationStatus.java", content });
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ name: "ReservationStatus", role: "dto" });
+  });
+
+  it("extracts enum constants as fields with type 'enum constant'", () => {
+    const content = `
+public enum OrderStatus {
+    PENDING,
+    CONFIRMED,
+    SHIPPED
+}`;
+    const result = extractDataTypes({ path: "OrderStatus.java", content });
+    expect(result[0].fields).toEqual(
+      expect.arrayContaining([
+        { name: "PENDING",    type: "enum constant" },
+        { name: "CONFIRMED",  type: "enum constant" },
+        { name: "SHIPPED",    type: "enum constant" },
+      ])
+    );
+  });
+
+  it("handles enums with constructor arguments", () => {
+    const content = `
+public enum ValidationOutcome {
+    PASSED,
+    FAILED_FRAUD,
+    FAILED_CREDIT
+}`;
+    const result = extractDataTypes({ path: "ValidationOutcome.java", content });
+    expect(result).toHaveLength(1);
+    expect(result[0].fields.map((f) => f.name)).toEqual(
+      expect.arrayContaining(["PASSED", "FAILED_FRAUD", "FAILED_CREDIT"])
+    );
+  });
+
+  it("does not detect enums with no constants as a data type", () => {
+    const content = `public enum Empty {}`;
+    const result = extractDataTypes({ path: "Empty.java", content });
+    expect(result).toHaveLength(0);
+  });
+
+  it("detects enum and class in same file independently", () => {
+    const content = `
+public enum Status { ACTIVE, INACTIVE }
+
+public class UserDto {
+    private String name;
+    private Status status;
+}`;
+    const result = extractDataTypes({ path: "UserDto.java", content });
+    const names = result.map((r) => r.name);
+    expect(names).toContain("Status");
+    expect(names).toContain("UserDto");
+  });
+});

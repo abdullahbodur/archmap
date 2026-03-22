@@ -1,0 +1,3504 @@
+{
+  "generatedAt": "2026-03-22T01:03:17.344Z",
+  "meta": {
+    "org": "local",
+    "repoCount": 2,
+    "serviceCount": 2
+  },
+  "services": [
+    {
+      "id": "inventory-service",
+      "name": "Inventory Service",
+      "repoName": "inventory-service",
+      "repoUrl": "file://C:/Users/abdul/projects/fun/docktail/services/inventory-service",
+      "language": "Java",
+      "summary": "Consumes order.created events from Kafka and reserves stock in PostgreSQL",
+      "endpoints": [],
+      "dataTypes": [
+        {
+          "name": "ReservationResult",
+          "fields": [
+            {
+              "type": "UUID",
+              "name": "reservationId"
+            },
+            {
+              "type": "UUID",
+              "name": "orderId"
+            },
+            {
+              "type": "String",
+              "name": "productSku"
+            },
+            {
+              "type": "Integer",
+              "name": "reservedQuantity"
+            },
+            {
+              "type": "ReservationStatus",
+              "name": "status"
+            },
+            {
+              "type": "String",
+              "name": "failureReason"
+            },
+            {
+              "type": "Instant",
+              "name": "reservedAt"
+            }
+          ],
+          "producedBy": [],
+          "consumedBy": [
+            "inventory-service"
+          ]
+        },
+        {
+          "name": "StockAdjustmentRequest",
+          "fields": [
+            {
+              "type": "String",
+              "name": "productSku"
+            },
+            {
+              "type": "Integer",
+              "name": "quantity"
+            }
+          ],
+          "producedBy": [],
+          "consumedBy": [
+            "inventory-service"
+          ]
+        },
+        {
+          "name": "InventoryReservation",
+          "fields": [
+            {
+              "type": "UUID",
+              "name": "id"
+            },
+            {
+              "type": "UUID",
+              "name": "orderId"
+            },
+            {
+              "type": "String",
+              "name": "productSku"
+            },
+            {
+              "type": "Integer",
+              "name": "reservedQuantity"
+            },
+            {
+              "type": "ReservationStatus",
+              "name": "status"
+            },
+            {
+              "type": "String",
+              "name": "failureReason"
+            },
+            {
+              "type": "Instant",
+              "name": "reservedAt"
+            },
+            {
+              "type": "Instant",
+              "name": "updatedAt"
+            }
+          ],
+          "producedBy": [
+            "inventory-service"
+          ],
+          "consumedBy": []
+        },
+        {
+          "name": "ReservationStatus",
+          "fields": [
+            {
+              "name": "RESERVED",
+              "type": "enum constant"
+            },
+            {
+              "name": "INSUFFICIENT_STOCK",
+              "type": "enum constant"
+            },
+            {
+              "name": "RELEASED",
+              "type": "enum constant"
+            },
+            {
+              "name": "FULFILLED",
+              "type": "enum constant"
+            }
+          ],
+          "producedBy": [],
+          "consumedBy": [
+            "inventory-service"
+          ]
+        },
+        {
+          "name": "StockLevel",
+          "fields": [
+            {
+              "type": "String",
+              "name": "productSku"
+            },
+            {
+              "type": "Integer",
+              "name": "availableQuantity"
+            },
+            {
+              "type": "Integer",
+              "name": "reservedQuantity"
+            },
+            {
+              "type": "Instant",
+              "name": "updatedAt"
+            }
+          ],
+          "producedBy": [
+            "inventory-service"
+          ],
+          "consumedBy": []
+        },
+        {
+          "name": "OrderCreatedEvent",
+          "fields": [
+            {
+              "type": "UUID",
+              "name": "orderId"
+            },
+            {
+              "type": "String",
+              "name": "customerId"
+            },
+            {
+              "type": "String",
+              "name": "productSku"
+            },
+            {
+              "type": "Integer",
+              "name": "quantity"
+            },
+            {
+              "type": "BigDecimal",
+              "name": "unitPrice"
+            },
+            {
+              "type": "BigDecimal",
+              "name": "totalPrice"
+            },
+            {
+              "type": "Instant",
+              "name": "occurredAt"
+            }
+          ],
+          "producedBy": [
+            "inventory-service"
+          ],
+          "consumedBy": []
+        }
+      ],
+      "functions": [
+        {
+          "name": "orderEventConsumerFactory",
+          "className": "KafkaConsumerConfig",
+          "signature": "public ConsumerFactory<String, OrderCreatedEvent> orderEventConsumerFactory() {",
+          "callsOut": [],
+          "callsMethods": [],
+          "callsBeanMethods": []
+        },
+        {
+          "name": "handleOrderCreated",
+          "className": "OrderCreatedConsumer",
+          "signature": "public void handleOrderCreated(",
+          "callsOut": [
+            {
+              "targetService": "inventory",
+              "targetServiceId": "inventory"
+            }
+          ],
+          "callsMethods": [],
+          "callsBeanMethods": [
+            {
+              "beanVariable": "inventoryService",
+              "methodName": "reserve"
+            }
+          ]
+        },
+        {
+          "name": "main",
+          "className": "InventoryServiceApplication",
+          "signature": "public static void main(String[] args) {",
+          "callsOut": [],
+          "callsMethods": [],
+          "callsBeanMethods": []
+        },
+        {
+          "name": "reserve",
+          "className": "InventoryService",
+          "signature": "public ReservationResult reserve(OrderCreatedEvent event) {",
+          "callsOut": [
+            {
+              "targetService": "reservation",
+              "targetServiceId": "reservation"
+            }
+          ],
+          "callsMethods": [
+            "createReservation"
+          ],
+          "callsBeanMethods": [
+            {
+              "beanVariable": "reservationRepository",
+              "methodName": "findByOrderId"
+            }
+          ]
+        },
+        {
+          "name": "createReservation",
+          "className": "InventoryService",
+          "signature": "private ReservationResult createReservation(OrderCreatedEvent event) {",
+          "callsOut": [
+            {
+              "targetService": "stocklevel",
+              "targetServiceId": "stocklevel"
+            },
+            {
+              "targetService": "reservation",
+              "targetServiceId": "reservation"
+            }
+          ],
+          "callsMethods": [],
+          "callsBeanMethods": [
+            {
+              "beanVariable": "stockLevelRepository",
+              "methodName": "reserveStock"
+            },
+            {
+              "beanVariable": "reservationRepository",
+              "methodName": "save"
+            }
+          ]
+        }
+      ],
+      "dependsOn": [
+        "order-service"
+      ],
+      "kafkaProducers": [],
+      "kafkaConsumers": [
+        {
+          "topics": [
+            "${app.kafka.topics.order-created:order.created}"
+          ],
+          "groupId": "${spring.kafka.consumer.group-id}",
+          "handlerMethod": "unknown",
+          "handlerClass": "OrderCreatedConsumer"
+        }
+      ],
+      "type": "service",
+      "domain": "commerce",
+      "tags": [
+        "kafka-consumer",
+        "postgres"
+      ],
+      "infrastructure": [
+        {
+          "id": "inventory-db",
+          "name": "Inventory DB",
+          "type": "database",
+          "technology": "PostgreSQL 14",
+          "description": "Inventory data store",
+          "ref": "./infra/postgres-archmap.yml",
+          "internal": true
+        },
+        {
+          "id": "kafka",
+          "name": "Apache Kafka",
+          "type": "queue",
+          "technology": "Apache Kafka",
+          "description": "Shared event streaming platform",
+          "ref": "./infra/kafka-archmap.yml"
+        }
+      ]
+    },
+    {
+      "id": "order-service",
+      "name": "Order Service",
+      "repoName": "order-service",
+      "repoUrl": "file://C:/Users/abdul/projects/fun/docktail/services/order-service",
+      "language": "Java",
+      "summary": "Accepts order creation requests via REST, persists to PostgreSQL, and publishes order.created events to Kafka",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/v1/orders",
+          "inputType": "CreateOrderRequest",
+          "outputType": "ResponseEntity<OrderResponse>"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/orders/{id}",
+          "outputType": "ResponseEntity<OrderResponse>"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/orders"
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/v1/orders/{id}/status",
+          "inputType": "UpdateOrderStatusRequest",
+          "outputType": "ResponseEntity<OrderResponse>"
+        }
+      ],
+      "dataTypes": [
+        {
+          "name": "CreateOrderRequest",
+          "fields": [
+            {
+              "type": "String",
+              "name": "customerId"
+            },
+            {
+              "type": "String",
+              "name": "productSku"
+            },
+            {
+              "type": "Integer",
+              "name": "quantity"
+            },
+            {
+              "type": "BigDecimal",
+              "name": "unitPrice"
+            }
+          ],
+          "producedBy": [],
+          "consumedBy": [
+            "order-service"
+          ]
+        },
+        {
+          "name": "DailySummaryReport",
+          "fields": [
+            {
+              "type": "Instant",
+              "name": "periodStart"
+            },
+            {
+              "type": "Instant",
+              "name": "periodEnd"
+            },
+            {
+              "type": "int",
+              "name": "confirmedOrders"
+            },
+            {
+              "type": "int",
+              "name": "cancelledOrders"
+            },
+            {
+              "type": "BigDecimal",
+              "name": "totalRevenue"
+            }
+          ],
+          "producedBy": [],
+          "consumedBy": [
+            "order-service"
+          ]
+        },
+        {
+          "name": "OrderResponse",
+          "fields": [
+            {
+              "type": "UUID",
+              "name": "id"
+            },
+            {
+              "type": "String",
+              "name": "customerId"
+            },
+            {
+              "type": "String",
+              "name": "productSku"
+            },
+            {
+              "type": "Integer",
+              "name": "quantity"
+            },
+            {
+              "type": "BigDecimal",
+              "name": "unitPrice"
+            },
+            {
+              "type": "BigDecimal",
+              "name": "totalPrice"
+            },
+            {
+              "type": "OrderStatus",
+              "name": "status"
+            },
+            {
+              "type": "Instant",
+              "name": "createdAt"
+            },
+            {
+              "type": "Instant",
+              "name": "updatedAt"
+            }
+          ],
+          "producedBy": [],
+          "consumedBy": [
+            "order-service"
+          ]
+        },
+        {
+          "name": "UpdateOrderStatusRequest",
+          "fields": [
+            {
+              "type": "OrderStatus",
+              "name": "status"
+            }
+          ],
+          "producedBy": [],
+          "consumedBy": [
+            "order-service"
+          ]
+        },
+        {
+          "name": "Order",
+          "fields": [
+            {
+              "type": "UUID",
+              "name": "id"
+            },
+            {
+              "type": "String",
+              "name": "customerId"
+            },
+            {
+              "type": "String",
+              "name": "productSku"
+            },
+            {
+              "type": "Integer",
+              "name": "quantity"
+            },
+            {
+              "type": "BigDecimal",
+              "name": "unitPrice"
+            },
+            {
+              "type": "OrderStatus",
+              "name": "status"
+            },
+            {
+              "type": "Instant",
+              "name": "createdAt"
+            },
+            {
+              "type": "Instant",
+              "name": "updatedAt"
+            }
+          ],
+          "producedBy": [
+            "order-service"
+          ],
+          "consumedBy": []
+        },
+        {
+          "name": "OrderStatus",
+          "fields": [
+            {
+              "name": "PENDING",
+              "type": "enum constant"
+            },
+            {
+              "name": "CONFIRMED",
+              "type": "enum constant"
+            },
+            {
+              "name": "PROCESSING",
+              "type": "enum constant"
+            },
+            {
+              "name": "SHIPPED",
+              "type": "enum constant"
+            },
+            {
+              "name": "DELIVERED",
+              "type": "enum constant"
+            },
+            {
+              "name": "CANCELLED",
+              "type": "enum constant"
+            }
+          ],
+          "producedBy": [],
+          "consumedBy": [
+            "order-service"
+          ]
+        },
+        {
+          "name": "OrderCreatedEvent",
+          "fields": [
+            {
+              "type": "UUID",
+              "name": "orderId"
+            },
+            {
+              "type": "String",
+              "name": "customerId"
+            },
+            {
+              "type": "String",
+              "name": "productSku"
+            },
+            {
+              "type": "Integer",
+              "name": "quantity"
+            },
+            {
+              "type": "BigDecimal",
+              "name": "unitPrice"
+            },
+            {
+              "type": "BigDecimal",
+              "name": "totalPrice"
+            },
+            {
+              "type": "Instant",
+              "name": "occurredAt"
+            }
+          ],
+          "producedBy": [
+            "order-service"
+          ],
+          "consumedBy": []
+        },
+        {
+          "name": "OrderValidationRequestedEvent",
+          "fields": [
+            {
+              "type": "UUID",
+              "name": "orderId"
+            },
+            {
+              "type": "String",
+              "name": "customerId"
+            },
+            {
+              "type": "String",
+              "name": "productSku"
+            },
+            {
+              "type": "Integer",
+              "name": "quantity"
+            },
+            {
+              "type": "BigDecimal",
+              "name": "unitPrice"
+            },
+            {
+              "type": "Instant",
+              "name": "requestedAt"
+            }
+          ],
+          "producedBy": [
+            "order-service"
+          ],
+          "consumedBy": []
+        },
+        {
+          "name": "ValidationOutcome",
+          "fields": [
+            {
+              "name": "PASSED",
+              "type": "enum constant"
+            },
+            {
+              "name": "FAILED_FRAUD",
+              "type": "enum constant"
+            },
+            {
+              "name": "FAILED_CUSTOMER_LIMIT",
+              "type": "enum constant"
+            },
+            {
+              "name": "FAILED_CREDIT",
+              "type": "enum constant"
+            },
+            {
+              "name": "FAILED_BLACKLIST",
+              "type": "enum constant"
+            },
+            {
+              "name": "FAILED_PRICING",
+              "type": "enum constant"
+            }
+          ],
+          "producedBy": [],
+          "consumedBy": [
+            "order-service"
+          ]
+        },
+        {
+          "name": "ValidationResult",
+          "fields": [
+            {
+              "type": "boolean",
+              "name": "passed"
+            },
+            {
+              "type": "ValidationOutcome",
+              "name": "outcome"
+            },
+            {
+              "type": "BigDecimal",
+              "name": "finalUnitPrice"
+            },
+            {
+              "type": "BigDecimal",
+              "name": "finalTotalPrice"
+            },
+            {
+              "type": "int",
+              "name": "riskScore"
+            },
+            {
+              "type": "String",
+              "name": "rejectionReason"
+            }
+          ],
+          "producedBy": [],
+          "consumedBy": [
+            "order-service"
+          ]
+        }
+      ],
+      "functions": [
+        {
+          "name": "validationEventConsumerFactory",
+          "className": "KafkaConsumerConfig",
+          "signature": "public ConsumerFactory<String, OrderValidationRequestedEvent> validationEventConsumerFactory() {",
+          "callsOut": [],
+          "callsMethods": [],
+          "callsBeanMethods": []
+        },
+        {
+          "name": "baseProducerProps",
+          "className": "KafkaProducerConfig",
+          "signature": "private Map<String, Object> baseProducerProps() {",
+          "callsOut": [],
+          "callsMethods": [],
+          "callsBeanMethods": []
+        },
+        {
+          "name": "validationEventProducerFactory",
+          "className": "KafkaProducerConfig",
+          "signature": "public ProducerFactory<String, OrderValidationRequestedEvent> validationEventProducerFactory() {",
+          "callsOut": [],
+          "callsMethods": [
+            "baseProducerProps"
+          ],
+          "callsBeanMethods": []
+        },
+        {
+          "name": "validationKafkaTemplate",
+          "className": "KafkaProducerConfig",
+          "signature": "public KafkaTemplate<String, OrderValidationRequestedEvent> validationKafkaTemplate() {",
+          "callsOut": [],
+          "callsMethods": [
+            "validationEventProducerFactory"
+          ],
+          "callsBeanMethods": []
+        },
+        {
+          "name": "orderCreatedProducerFactory",
+          "className": "KafkaProducerConfig",
+          "signature": "public ProducerFactory<String, OrderCreatedEvent> orderCreatedProducerFactory() {",
+          "callsOut": [],
+          "callsMethods": [
+            "baseProducerProps"
+          ],
+          "callsBeanMethods": []
+        },
+        {
+          "name": "orderCreatedKafkaTemplate",
+          "className": "KafkaProducerConfig",
+          "signature": "public KafkaTemplate<String, OrderCreatedEvent> orderCreatedKafkaTemplate() {",
+          "callsOut": [],
+          "callsMethods": [
+            "orderCreatedProducerFactory"
+          ],
+          "callsBeanMethods": []
+        },
+        {
+          "name": "handleValidationRequested",
+          "className": "OrderValidationConsumer",
+          "signature": "public void handleValidationRequested(",
+          "callsOut": [
+            {
+              "targetService": "ordervalidation",
+              "targetServiceId": "ordervalidation"
+            },
+            {
+              "targetService": "order",
+              "targetServiceId": "order"
+            }
+          ],
+          "callsMethods": [],
+          "callsBeanMethods": [
+            {
+              "beanVariable": "orderValidationService",
+              "methodName": "validate"
+            },
+            {
+              "beanVariable": "orderService",
+              "methodName": "confirmOrder"
+            },
+            {
+              "beanVariable": "orderService",
+              "methodName": "rejectOrder"
+            }
+          ]
+        },
+        {
+          "name": "handleNotFound",
+          "className": "GlobalExceptionHandler",
+          "signature": "public ProblemDetail handleNotFound(OrderNotFoundException ex) {",
+          "callsOut": [],
+          "callsMethods": [],
+          "callsBeanMethods": []
+        },
+        {
+          "name": "handleValidation",
+          "className": "GlobalExceptionHandler",
+          "signature": "public ProblemDetail handleValidation(MethodArgumentNotValidException ex) {",
+          "callsOut": [],
+          "callsMethods": [],
+          "callsBeanMethods": []
+        },
+        {
+          "name": "createOrder",
+          "className": "OrderController",
+          "signature": "public ResponseEntity<OrderResponse> createOrder(@Valid @RequestBody CreateOrderRequest request) {",
+          "callsOut": [
+            {
+              "targetService": "order",
+              "targetServiceId": "order"
+            }
+          ],
+          "callsMethods": [],
+          "callsBeanMethods": [
+            {
+              "beanVariable": "orderService",
+              "methodName": "initiateOrder"
+            }
+          ]
+        },
+        {
+          "name": "updateStatus",
+          "className": "OrderController",
+          "signature": "public ResponseEntity<OrderResponse> updateStatus(",
+          "callsOut": [
+            {
+              "targetService": "order",
+              "targetServiceId": "order"
+            }
+          ],
+          "callsMethods": [],
+          "callsBeanMethods": [
+            {
+              "beanVariable": "orderService",
+              "methodName": "updateStatus"
+            }
+          ]
+        },
+        {
+          "name": "main",
+          "className": "OrderServiceApplication",
+          "signature": "public static void main(String[] args) {",
+          "callsOut": [],
+          "callsMethods": [],
+          "callsBeanMethods": []
+        },
+        {
+          "name": "cancelExpiredPendingOrders",
+          "className": "OrderMaintenanceScheduler",
+          "signature": "public void cancelExpiredPendingOrders() {",
+          "callsOut": [
+            {
+              "targetService": "order",
+              "targetServiceId": "order"
+            },
+            {
+              "targetService": "notification",
+              "targetServiceId": "notification"
+            }
+          ],
+          "callsMethods": [],
+          "callsBeanMethods": [
+            {
+              "beanVariable": "orderService",
+              "methodName": "findExpiredPendingOrders"
+            },
+            {
+              "beanVariable": "orderService",
+              "methodName": "rejectOrder"
+            },
+            {
+              "beanVariable": "notificationService",
+              "methodName": "sendOrderCancellationNotice"
+            }
+          ]
+        },
+        {
+          "name": "generateDailySalesReport",
+          "className": "OrderMaintenanceScheduler",
+          "signature": "public void generateDailySalesReport() {",
+          "callsOut": [
+            {
+              "targetService": "reporting",
+              "targetServiceId": "reporting"
+            }
+          ],
+          "callsMethods": [],
+          "callsBeanMethods": [
+            {
+              "beanVariable": "reportingService",
+              "methodName": "buildDailySummary"
+            },
+            {
+              "beanVariable": "reportingService",
+              "methodName": "publishSummary"
+            }
+          ]
+        },
+        {
+          "name": "archiveOldOrders",
+          "className": "OrderMaintenanceScheduler",
+          "signature": "public void archiveOldOrders() {",
+          "callsOut": [
+            {
+              "targetService": "order",
+              "targetServiceId": "order"
+            }
+          ],
+          "callsMethods": [],
+          "callsBeanMethods": [
+            {
+              "beanVariable": "orderService",
+              "methodName": "archiveOrdersBefore"
+            }
+          ]
+        },
+        {
+          "name": "validate",
+          "className": "CustomerProfileService",
+          "signature": "public void validate(OrderValidationRequestedEvent event) {",
+          "callsOut": [],
+          "callsMethods": [
+            "checkBlacklist",
+            "checkDailyOrderLimit",
+            "checkOrderValueLimit"
+          ],
+          "callsBeanMethods": []
+        },
+        {
+          "name": "fetchProfile",
+          "className": "CustomerProfileService",
+          "signature": "public CustomerProfile fetchProfile(String customerId) {",
+          "callsOut": [],
+          "callsMethods": [
+            "CustomerProfile"
+          ],
+          "callsBeanMethods": []
+        },
+        {
+          "name": "CustomerProfile",
+          "className": "CustomerProfileService",
+          "signature": "public record CustomerProfile(String customerId, String email) {",
+          "callsOut": [],
+          "callsMethods": [],
+          "callsBeanMethods": []
+        },
+        {
+          "name": "checkBlacklist",
+          "className": "CustomerProfileService",
+          "signature": "private void checkBlacklist(String customerId) {",
+          "callsOut": [],
+          "callsMethods": [],
+          "callsBeanMethods": []
+        },
+        {
+          "name": "checkDailyOrderLimit",
+          "className": "CustomerProfileService",
+          "signature": "private void checkDailyOrderLimit(String customerId) {",
+          "callsOut": [
+            {
+              "targetService": "order",
+              "targetServiceId": "order"
+            }
+          ],
+          "callsMethods": [],
+          "callsBeanMethods": [
+            {
+              "beanVariable": "orderRepository",
+              "methodName": "findByCustomerId"
+            }
+          ]
+        },
+        {
+          "name": "checkOrderValueLimit",
+          "className": "CustomerProfileService",
+          "signature": "private void checkOrderValueLimit(BigDecimal unitPrice, int quantity, String customerId) {",
+          "callsOut": [],
+          "callsMethods": [],
+          "callsBeanMethods": []
+        },
+        {
+          "name": "assess",
+          "className": "FraudCheckService",
+          "signature": "public int assess(OrderValidationRequestedEvent event) {",
+          "callsOut": [],
+          "callsMethods": [
+            "checkVelocity",
+            "checkHighValueThreshold",
+            "evaluateRiskScore"
+          ],
+          "callsBeanMethods": []
+        },
+        {
+          "name": "checkVelocity",
+          "className": "FraudCheckService",
+          "signature": "private int checkVelocity(String customerId) {",
+          "callsOut": [
+            {
+              "targetService": "order",
+              "targetServiceId": "order"
+            }
+          ],
+          "callsMethods": [],
+          "callsBeanMethods": [
+            {
+              "beanVariable": "orderRepository",
+              "methodName": "findByCustomerId"
+            }
+          ]
+        },
+        {
+          "name": "checkHighValueThreshold",
+          "className": "FraudCheckService",
+          "signature": "private int checkHighValueThreshold(BigDecimal unitPrice, int quantity) {",
+          "callsOut": [],
+          "callsMethods": [],
+          "callsBeanMethods": []
+        },
+        {
+          "name": "evaluateRiskScore",
+          "className": "FraudCheckService",
+          "signature": "private int evaluateRiskScore(int velocityScore, int highValueScore) {",
+          "callsOut": [],
+          "callsMethods": [],
+          "callsBeanMethods": []
+        },
+        {
+          "name": "sendOrderConfirmationEmail",
+          "className": "NotificationService",
+          "signature": "public void sendOrderConfirmationEmail(UUID orderId, String customerId) {",
+          "callsOut": [
+            {
+              "targetService": "customerprofile",
+              "targetServiceId": "customerprofile"
+            }
+          ],
+          "callsMethods": [],
+          "callsBeanMethods": [
+            {
+              "beanVariable": "customerProfileService",
+              "methodName": "fetchProfile"
+            }
+          ]
+        },
+        {
+          "name": "sendOrderCancellationNotice",
+          "className": "NotificationService",
+          "signature": "public void sendOrderCancellationNotice(UUID orderId, String customerId) {",
+          "callsOut": [
+            {
+              "targetService": "customerprofile",
+              "targetServiceId": "customerprofile"
+            }
+          ],
+          "callsMethods": [],
+          "callsBeanMethods": [
+            {
+              "beanVariable": "customerProfileService",
+              "methodName": "fetchProfile"
+            }
+          ]
+        },
+        {
+          "name": "sendFraudAlert",
+          "className": "NotificationService",
+          "signature": "public void sendFraudAlert(UUID orderId, String customerId) {",
+          "callsOut": [
+            {
+              "targetService": "customerprofile",
+              "targetServiceId": "customerprofile"
+            }
+          ],
+          "callsMethods": [],
+          "callsBeanMethods": [
+            {
+              "beanVariable": "customerProfileService",
+              "methodName": "fetchProfile"
+            }
+          ]
+        },
+        {
+          "name": "initiateOrder",
+          "className": "OrderService",
+          "signature": "public OrderResponse initiateOrder(CreateOrderRequest request) {",
+          "callsOut": [
+            {
+              "targetService": "order",
+              "targetServiceId": "order"
+            }
+          ],
+          "callsMethods": [],
+          "callsBeanMethods": [
+            {
+              "beanVariable": "orderRepository",
+              "methodName": "save"
+            }
+          ]
+        },
+        {
+          "name": "confirmOrder",
+          "className": "OrderService",
+          "signature": "public void confirmOrder(UUID orderId, BigDecimal finalUnitPrice, BigDecimal finalTotalPrice) {",
+          "callsOut": [
+            {
+              "targetService": "order",
+              "targetServiceId": "order"
+            }
+          ],
+          "callsMethods": [],
+          "callsBeanMethods": [
+            {
+              "beanVariable": "orderRepository",
+              "methodName": "findById"
+            },
+            {
+              "beanVariable": "orderRepository",
+              "methodName": "save"
+            }
+          ]
+        },
+        {
+          "name": "rejectOrder",
+          "className": "OrderService",
+          "signature": "public void rejectOrder(UUID orderId, String reason) {",
+          "callsOut": [
+            {
+              "targetService": "order",
+              "targetServiceId": "order"
+            }
+          ],
+          "callsMethods": [],
+          "callsBeanMethods": [
+            {
+              "beanVariable": "orderRepository",
+              "methodName": "findById"
+            },
+            {
+              "beanVariable": "orderRepository",
+              "methodName": "save"
+            }
+          ]
+        },
+        {
+          "name": "updateStatus",
+          "className": "OrderService",
+          "signature": "public OrderResponse updateStatus(UUID id, UpdateOrderStatusRequest request) {",
+          "callsOut": [
+            {
+              "targetService": "order",
+              "targetServiceId": "order"
+            }
+          ],
+          "callsMethods": [],
+          "callsBeanMethods": [
+            {
+              "beanVariable": "orderRepository",
+              "methodName": "findById"
+            },
+            {
+              "beanVariable": "orderRepository",
+              "methodName": "save"
+            }
+          ]
+        },
+        {
+          "name": "findExpiredPendingOrders",
+          "className": "OrderService",
+          "signature": "public List<Order> findExpiredPendingOrders(Instant before) {",
+          "callsOut": [
+            {
+              "targetService": "order",
+              "targetServiceId": "order"
+            }
+          ],
+          "callsMethods": [],
+          "callsBeanMethods": [
+            {
+              "beanVariable": "orderRepository",
+              "methodName": "findByStatus"
+            }
+          ]
+        },
+        {
+          "name": "archiveOrdersBefore",
+          "className": "OrderService",
+          "signature": "public int archiveOrdersBefore(Instant cutoff) {",
+          "callsOut": [
+            {
+              "targetService": "order",
+              "targetServiceId": "order"
+            }
+          ],
+          "callsMethods": [],
+          "callsBeanMethods": [
+            {
+              "beanVariable": "orderRepository",
+              "methodName": "findAll"
+            }
+          ]
+        },
+        {
+          "name": "validate",
+          "className": "OrderValidationService",
+          "signature": "public ValidationResult validate(OrderValidationRequestedEvent event) {",
+          "callsOut": [
+            {
+              "targetService": "fraudcheck",
+              "targetServiceId": "fraudcheck"
+            },
+            {
+              "targetService": "customerprofile",
+              "targetServiceId": "customerprofile"
+            },
+            {
+              "targetService": "pricing",
+              "targetServiceId": "pricing"
+            }
+          ],
+          "callsMethods": [
+            "resolveCustomerOutcome"
+          ],
+          "callsBeanMethods": [
+            {
+              "beanVariable": "fraudCheckService",
+              "methodName": "assess"
+            },
+            {
+              "beanVariable": "customerProfileService",
+              "methodName": "validate"
+            },
+            {
+              "beanVariable": "pricingService",
+              "methodName": "calculateFinalPrice"
+            }
+          ]
+        },
+        {
+          "name": "resolveCustomerOutcome",
+          "className": "OrderValidationService",
+          "signature": "private ValidationOutcome resolveCustomerOutcome(String message) {",
+          "callsOut": [],
+          "callsMethods": [],
+          "callsBeanMethods": []
+        },
+        {
+          "name": "applyVolumeDiscount",
+          "className": "PricingService",
+          "signature": "private BigDecimal applyVolumeDiscount(BigDecimal unitPrice, int quantity) {",
+          "callsOut": [],
+          "callsMethods": [],
+          "callsBeanMethods": []
+        },
+        {
+          "name": "applyCustomerDiscount",
+          "className": "PricingService",
+          "signature": "private BigDecimal applyCustomerDiscount(BigDecimal unitPrice, String customerId) {",
+          "callsOut": [],
+          "callsMethods": [],
+          "callsBeanMethods": []
+        },
+        {
+          "name": "calculateTotal",
+          "className": "PricingService",
+          "signature": "public BigDecimal calculateTotal(BigDecimal unitPrice, int quantity) {",
+          "callsOut": [],
+          "callsMethods": [
+            "calculateTax"
+          ],
+          "callsBeanMethods": []
+        },
+        {
+          "name": "calculateTax",
+          "className": "PricingService",
+          "signature": "private BigDecimal calculateTax(BigDecimal unitPrice) {",
+          "callsOut": [],
+          "callsMethods": [],
+          "callsBeanMethods": []
+        },
+        {
+          "name": "buildDailySummary",
+          "className": "ReportingService",
+          "signature": "public DailySummaryReport buildDailySummary(Instant dayStart) {",
+          "callsOut": [
+            {
+              "targetService": "order",
+              "targetServiceId": "order"
+            },
+            {
+              "targetService": "pricing",
+              "targetServiceId": "pricing"
+            },
+            {
+              "targetService": "dailysummaryre",
+              "targetServiceId": "dailysummaryre"
+            }
+          ],
+          "callsMethods": [],
+          "callsBeanMethods": [
+            {
+              "beanVariable": "orderRepository",
+              "methodName": "findByStatus"
+            },
+            {
+              "beanVariable": "pricingService",
+              "methodName": "calculateTotal"
+            },
+            {
+              "beanVariable": "DailySummaryReport",
+              "methodName": "builder"
+            }
+          ]
+        },
+        {
+          "name": "publishSummary",
+          "className": "ReportingService",
+          "signature": "public void publishSummary(DailySummaryReport report) {",
+          "callsOut": [
+            {
+              "targetService": "re",
+              "targetServiceId": "re"
+            }
+          ],
+          "callsMethods": [],
+          "callsBeanMethods": [
+            {
+              "beanVariable": "report",
+              "methodName": "getConfirmedOrders"
+            },
+            {
+              "beanVariable": "report",
+              "methodName": "getCancelledOrders"
+            },
+            {
+              "beanVariable": "report",
+              "methodName": "getTotalRevenue"
+            }
+          ]
+        },
+        {
+          "name": "calculateMonthlyRevenue",
+          "className": "ReportingService",
+          "signature": "public BigDecimal calculateMonthlyRevenue(Instant monthStart) {",
+          "callsOut": [
+            {
+              "targetService": "order",
+              "targetServiceId": "order"
+            },
+            {
+              "targetService": "pricing",
+              "targetServiceId": "pricing"
+            }
+          ],
+          "callsMethods": [],
+          "callsBeanMethods": [
+            {
+              "beanVariable": "orderRepository",
+              "methodName": "findByStatus"
+            },
+            {
+              "beanVariable": "pricingService",
+              "methodName": "calculateTotal"
+            }
+          ]
+        }
+      ],
+      "dependsOn": [],
+      "kafkaProducers": [],
+      "kafkaConsumers": [
+        {
+          "topics": [
+            "${app.kafka.topics.order-validation-requested:order.validation.requested}"
+          ],
+          "groupId": "${app.kafka.consumer-groups.order-validation:order-validation-group}",
+          "handlerMethod": "unknown",
+          "handlerClass": "OrderValidationConsumer"
+        }
+      ],
+      "type": "service",
+      "domain": "commerce",
+      "tags": [
+        "rest",
+        "kafka-producer",
+        "postgres",
+        "critical"
+      ],
+      "infrastructure": [
+        {
+          "id": "orders-db",
+          "name": "Orders DB",
+          "type": "database",
+          "technology": "PostgreSQL 14",
+          "description": "Primary relational store for order records",
+          "ref": "./infra/postgres-archmap.yml",
+          "internal": true
+        },
+        {
+          "id": "kafka",
+          "name": "Apache Kafka",
+          "type": "queue",
+          "technology": "Apache Kafka",
+          "description": "Shared event streaming platform",
+          "ref": "./infra/kafka-archmap.yml"
+        }
+      ]
+    }
+  ],
+  "views": {
+    "serviceFlow": {
+      "nodes": [
+        {
+          "id": "inventory-service",
+          "type": "serviceNode",
+          "data": {
+            "label": "Inventory Service",
+            "name": "Inventory Service",
+            "repoName": "inventory-service",
+            "repoUrl": "file://C:/Users/abdul/projects/fun/docktail/services/inventory-service",
+            "language": "Java",
+            "summary": "Consumes order.created events from Kafka and reserves stock in PostgreSQL",
+            "endpoints": [],
+            "serviceType": "service",
+            "domain": "commerce",
+            "tags": [
+              "kafka-consumer",
+              "postgres"
+            ]
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "order-service",
+          "type": "serviceNode",
+          "data": {
+            "label": "Order Service",
+            "name": "Order Service",
+            "repoName": "order-service",
+            "repoUrl": "file://C:/Users/abdul/projects/fun/docktail/services/order-service",
+            "language": "Java",
+            "summary": "Accepts order creation requests via REST, persists to PostgreSQL, and publishes order.created events to Kafka",
+            "endpoints": [
+              {
+                "method": "POST",
+                "path": "/api/v1/orders",
+                "inputType": "CreateOrderRequest",
+                "outputType": "ResponseEntity<OrderResponse>"
+              },
+              {
+                "method": "GET",
+                "path": "/api/v1/orders/{id}",
+                "outputType": "ResponseEntity<OrderResponse>"
+              },
+              {
+                "method": "GET",
+                "path": "/api/v1/orders"
+              },
+              {
+                "method": "PATCH",
+                "path": "/api/v1/orders/{id}/status",
+                "inputType": "UpdateOrderStatusRequest",
+                "outputType": "ResponseEntity<OrderResponse>"
+              }
+            ],
+            "serviceType": "service",
+            "domain": "commerce",
+            "tags": [
+              "rest",
+              "kafka-producer",
+              "postgres",
+              "critical"
+            ]
+          },
+          "position": {
+            "x": 0,
+            "y": 160
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "svc:inventory-service→order-service",
+          "source": "inventory-service",
+          "target": "order-service",
+          "label": "calls",
+          "animated": true,
+          "markerEnd": "arrow"
+        }
+      ]
+    },
+    "dataFlow": {
+      "nodes": [
+        {
+          "id": "dt:ReservationResult",
+          "type": "dataTypeNode",
+          "data": {
+            "label": "ReservationResult",
+            "name": "ReservationResult",
+            "fields": [
+              {
+                "type": "UUID",
+                "name": "reservationId"
+              },
+              {
+                "type": "UUID",
+                "name": "orderId"
+              },
+              {
+                "type": "String",
+                "name": "productSku"
+              },
+              {
+                "type": "Integer",
+                "name": "reservedQuantity"
+              },
+              {
+                "type": "ReservationStatus",
+                "name": "status"
+              },
+              {
+                "type": "String",
+                "name": "failureReason"
+              },
+              {
+                "type": "Instant",
+                "name": "reservedAt"
+              }
+            ],
+            "producedBy": [],
+            "consumedBy": [
+              "inventory-service"
+            ]
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "dt:StockAdjustmentRequest",
+          "type": "dataTypeNode",
+          "data": {
+            "label": "StockAdjustmentRequest",
+            "name": "StockAdjustmentRequest",
+            "fields": [
+              {
+                "type": "String",
+                "name": "productSku"
+              },
+              {
+                "type": "Integer",
+                "name": "quantity"
+              }
+            ],
+            "producedBy": [],
+            "consumedBy": [
+              "inventory-service"
+            ]
+          },
+          "position": {
+            "x": 320,
+            "y": 0
+          }
+        },
+        {
+          "id": "dt:InventoryReservation",
+          "type": "dataTypeNode",
+          "data": {
+            "label": "InventoryReservation",
+            "name": "InventoryReservation",
+            "fields": [
+              {
+                "type": "UUID",
+                "name": "id"
+              },
+              {
+                "type": "UUID",
+                "name": "orderId"
+              },
+              {
+                "type": "String",
+                "name": "productSku"
+              },
+              {
+                "type": "Integer",
+                "name": "reservedQuantity"
+              },
+              {
+                "type": "ReservationStatus",
+                "name": "status"
+              },
+              {
+                "type": "String",
+                "name": "failureReason"
+              },
+              {
+                "type": "Instant",
+                "name": "reservedAt"
+              },
+              {
+                "type": "Instant",
+                "name": "updatedAt"
+              }
+            ],
+            "producedBy": [
+              "inventory-service"
+            ],
+            "consumedBy": []
+          },
+          "position": {
+            "x": 640,
+            "y": 0
+          }
+        },
+        {
+          "id": "dt:ReservationStatus",
+          "type": "dataTypeNode",
+          "data": {
+            "label": "ReservationStatus",
+            "name": "ReservationStatus",
+            "fields": [
+              {
+                "name": "RESERVED",
+                "type": "enum constant"
+              },
+              {
+                "name": "INSUFFICIENT_STOCK",
+                "type": "enum constant"
+              },
+              {
+                "name": "RELEASED",
+                "type": "enum constant"
+              },
+              {
+                "name": "FULFILLED",
+                "type": "enum constant"
+              }
+            ],
+            "producedBy": [],
+            "consumedBy": [
+              "inventory-service"
+            ]
+          },
+          "position": {
+            "x": 960,
+            "y": 0
+          }
+        },
+        {
+          "id": "dt:StockLevel",
+          "type": "dataTypeNode",
+          "data": {
+            "label": "StockLevel",
+            "name": "StockLevel",
+            "fields": [
+              {
+                "type": "String",
+                "name": "productSku"
+              },
+              {
+                "type": "Integer",
+                "name": "availableQuantity"
+              },
+              {
+                "type": "Integer",
+                "name": "reservedQuantity"
+              },
+              {
+                "type": "Instant",
+                "name": "updatedAt"
+              }
+            ],
+            "producedBy": [
+              "inventory-service"
+            ],
+            "consumedBy": []
+          },
+          "position": {
+            "x": 0,
+            "y": 300
+          }
+        },
+        {
+          "id": "dt:OrderCreatedEvent",
+          "type": "dataTypeNode",
+          "data": {
+            "label": "OrderCreatedEvent",
+            "name": "OrderCreatedEvent",
+            "fields": [
+              {
+                "type": "UUID",
+                "name": "orderId"
+              },
+              {
+                "type": "String",
+                "name": "customerId"
+              },
+              {
+                "type": "String",
+                "name": "productSku"
+              },
+              {
+                "type": "Integer",
+                "name": "quantity"
+              },
+              {
+                "type": "BigDecimal",
+                "name": "unitPrice"
+              },
+              {
+                "type": "BigDecimal",
+                "name": "totalPrice"
+              },
+              {
+                "type": "Instant",
+                "name": "occurredAt"
+              }
+            ],
+            "producedBy": [
+              "inventory-service",
+              "order-service"
+            ],
+            "consumedBy": []
+          },
+          "position": {
+            "x": 320,
+            "y": 300
+          }
+        },
+        {
+          "id": "dt:CreateOrderRequest",
+          "type": "dataTypeNode",
+          "data": {
+            "label": "CreateOrderRequest",
+            "name": "CreateOrderRequest",
+            "fields": [
+              {
+                "type": "String",
+                "name": "customerId"
+              },
+              {
+                "type": "String",
+                "name": "productSku"
+              },
+              {
+                "type": "Integer",
+                "name": "quantity"
+              },
+              {
+                "type": "BigDecimal",
+                "name": "unitPrice"
+              }
+            ],
+            "producedBy": [],
+            "consumedBy": [
+              "order-service"
+            ]
+          },
+          "position": {
+            "x": 640,
+            "y": 300
+          }
+        },
+        {
+          "id": "dt:DailySummaryReport",
+          "type": "dataTypeNode",
+          "data": {
+            "label": "DailySummaryReport",
+            "name": "DailySummaryReport",
+            "fields": [
+              {
+                "type": "Instant",
+                "name": "periodStart"
+              },
+              {
+                "type": "Instant",
+                "name": "periodEnd"
+              },
+              {
+                "type": "int",
+                "name": "confirmedOrders"
+              },
+              {
+                "type": "int",
+                "name": "cancelledOrders"
+              },
+              {
+                "type": "BigDecimal",
+                "name": "totalRevenue"
+              }
+            ],
+            "producedBy": [],
+            "consumedBy": [
+              "order-service"
+            ]
+          },
+          "position": {
+            "x": 960,
+            "y": 300
+          }
+        },
+        {
+          "id": "dt:OrderResponse",
+          "type": "dataTypeNode",
+          "data": {
+            "label": "OrderResponse",
+            "name": "OrderResponse",
+            "fields": [
+              {
+                "type": "UUID",
+                "name": "id"
+              },
+              {
+                "type": "String",
+                "name": "customerId"
+              },
+              {
+                "type": "String",
+                "name": "productSku"
+              },
+              {
+                "type": "Integer",
+                "name": "quantity"
+              },
+              {
+                "type": "BigDecimal",
+                "name": "unitPrice"
+              },
+              {
+                "type": "BigDecimal",
+                "name": "totalPrice"
+              },
+              {
+                "type": "OrderStatus",
+                "name": "status"
+              },
+              {
+                "type": "Instant",
+                "name": "createdAt"
+              },
+              {
+                "type": "Instant",
+                "name": "updatedAt"
+              }
+            ],
+            "producedBy": [],
+            "consumedBy": [
+              "order-service"
+            ]
+          },
+          "position": {
+            "x": 0,
+            "y": 600
+          }
+        },
+        {
+          "id": "dt:UpdateOrderStatusRequest",
+          "type": "dataTypeNode",
+          "data": {
+            "label": "UpdateOrderStatusRequest",
+            "name": "UpdateOrderStatusRequest",
+            "fields": [
+              {
+                "type": "OrderStatus",
+                "name": "status"
+              }
+            ],
+            "producedBy": [],
+            "consumedBy": [
+              "order-service"
+            ]
+          },
+          "position": {
+            "x": 320,
+            "y": 600
+          }
+        },
+        {
+          "id": "dt:Order",
+          "type": "dataTypeNode",
+          "data": {
+            "label": "Order",
+            "name": "Order",
+            "fields": [
+              {
+                "type": "UUID",
+                "name": "id"
+              },
+              {
+                "type": "String",
+                "name": "customerId"
+              },
+              {
+                "type": "String",
+                "name": "productSku"
+              },
+              {
+                "type": "Integer",
+                "name": "quantity"
+              },
+              {
+                "type": "BigDecimal",
+                "name": "unitPrice"
+              },
+              {
+                "type": "OrderStatus",
+                "name": "status"
+              },
+              {
+                "type": "Instant",
+                "name": "createdAt"
+              },
+              {
+                "type": "Instant",
+                "name": "updatedAt"
+              }
+            ],
+            "producedBy": [
+              "order-service"
+            ],
+            "consumedBy": []
+          },
+          "position": {
+            "x": 640,
+            "y": 600
+          }
+        },
+        {
+          "id": "dt:OrderStatus",
+          "type": "dataTypeNode",
+          "data": {
+            "label": "OrderStatus",
+            "name": "OrderStatus",
+            "fields": [
+              {
+                "name": "PENDING",
+                "type": "enum constant"
+              },
+              {
+                "name": "CONFIRMED",
+                "type": "enum constant"
+              },
+              {
+                "name": "PROCESSING",
+                "type": "enum constant"
+              },
+              {
+                "name": "SHIPPED",
+                "type": "enum constant"
+              },
+              {
+                "name": "DELIVERED",
+                "type": "enum constant"
+              },
+              {
+                "name": "CANCELLED",
+                "type": "enum constant"
+              }
+            ],
+            "producedBy": [],
+            "consumedBy": [
+              "order-service"
+            ]
+          },
+          "position": {
+            "x": 960,
+            "y": 600
+          }
+        },
+        {
+          "id": "dt:OrderValidationRequestedEvent",
+          "type": "dataTypeNode",
+          "data": {
+            "label": "OrderValidationRequestedEvent",
+            "name": "OrderValidationRequestedEvent",
+            "fields": [
+              {
+                "type": "UUID",
+                "name": "orderId"
+              },
+              {
+                "type": "String",
+                "name": "customerId"
+              },
+              {
+                "type": "String",
+                "name": "productSku"
+              },
+              {
+                "type": "Integer",
+                "name": "quantity"
+              },
+              {
+                "type": "BigDecimal",
+                "name": "unitPrice"
+              },
+              {
+                "type": "Instant",
+                "name": "requestedAt"
+              }
+            ],
+            "producedBy": [
+              "order-service"
+            ],
+            "consumedBy": []
+          },
+          "position": {
+            "x": 0,
+            "y": 900
+          }
+        },
+        {
+          "id": "dt:ValidationOutcome",
+          "type": "dataTypeNode",
+          "data": {
+            "label": "ValidationOutcome",
+            "name": "ValidationOutcome",
+            "fields": [
+              {
+                "name": "PASSED",
+                "type": "enum constant"
+              },
+              {
+                "name": "FAILED_FRAUD",
+                "type": "enum constant"
+              },
+              {
+                "name": "FAILED_CUSTOMER_LIMIT",
+                "type": "enum constant"
+              },
+              {
+                "name": "FAILED_CREDIT",
+                "type": "enum constant"
+              },
+              {
+                "name": "FAILED_BLACKLIST",
+                "type": "enum constant"
+              },
+              {
+                "name": "FAILED_PRICING",
+                "type": "enum constant"
+              }
+            ],
+            "producedBy": [],
+            "consumedBy": [
+              "order-service"
+            ]
+          },
+          "position": {
+            "x": 320,
+            "y": 900
+          }
+        },
+        {
+          "id": "dt:ValidationResult",
+          "type": "dataTypeNode",
+          "data": {
+            "label": "ValidationResult",
+            "name": "ValidationResult",
+            "fields": [
+              {
+                "type": "boolean",
+                "name": "passed"
+              },
+              {
+                "type": "ValidationOutcome",
+                "name": "outcome"
+              },
+              {
+                "type": "BigDecimal",
+                "name": "finalUnitPrice"
+              },
+              {
+                "type": "BigDecimal",
+                "name": "finalTotalPrice"
+              },
+              {
+                "type": "int",
+                "name": "riskScore"
+              },
+              {
+                "type": "String",
+                "name": "rejectionReason"
+              }
+            ],
+            "producedBy": [],
+            "consumedBy": [
+              "order-service"
+            ]
+          },
+          "position": {
+            "x": 640,
+            "y": 900
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "ref:ReservationResult→ReservationStatus",
+          "source": "dt:ReservationResult",
+          "target": "dt:ReservationStatus",
+          "label": "status",
+          "animated": false,
+          "markerEnd": "arrow"
+        },
+        {
+          "id": "ref:InventoryReservation→ReservationStatus",
+          "source": "dt:InventoryReservation",
+          "target": "dt:ReservationStatus",
+          "label": "status",
+          "animated": false,
+          "markerEnd": "arrow"
+        },
+        {
+          "id": "ref:OrderResponse→OrderStatus",
+          "source": "dt:OrderResponse",
+          "target": "dt:OrderStatus",
+          "label": "status",
+          "animated": false,
+          "markerEnd": "arrow"
+        },
+        {
+          "id": "ref:UpdateOrderStatusRequest→OrderStatus",
+          "source": "dt:UpdateOrderStatusRequest",
+          "target": "dt:OrderStatus",
+          "label": "status",
+          "animated": false,
+          "markerEnd": "arrow"
+        },
+        {
+          "id": "ref:Order→OrderStatus",
+          "source": "dt:Order",
+          "target": "dt:OrderStatus",
+          "label": "status",
+          "animated": false,
+          "markerEnd": "arrow"
+        },
+        {
+          "id": "ref:ValidationResult→ValidationOutcome",
+          "source": "dt:ValidationResult",
+          "target": "dt:ValidationOutcome",
+          "label": "outcome",
+          "animated": false,
+          "markerEnd": "arrow"
+        }
+      ]
+    },
+    "functionFlow": {
+      "nodes": [
+        {
+          "id": "fn:inventory-service:KafkaConsumerConfig.orderEventConsumerFactory",
+          "type": "functionNode",
+          "data": {
+            "label": "orderEventConsumerFactory",
+            "name": "orderEventConsumerFactory",
+            "className": "KafkaConsumerConfig",
+            "serviceName": "Inventory Service",
+            "serviceId": "inventory-service",
+            "signature": "public ConsumerFactory<String, OrderCreatedEvent> orderEventConsumerFactory() {",
+            "callsOut": []
+          },
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "fn:inventory-service:OrderCreatedConsumer.handleOrderCreated",
+          "type": "functionNode",
+          "data": {
+            "label": "handleOrderCreated",
+            "name": "handleOrderCreated",
+            "className": "OrderCreatedConsumer",
+            "serviceName": "Inventory Service",
+            "serviceId": "inventory-service",
+            "signature": "public void handleOrderCreated(",
+            "callsOut": [
+              {
+                "targetService": "inventory",
+                "targetServiceId": "inventory"
+              }
+            ]
+          },
+          "position": {
+            "x": 340,
+            "y": 0
+          }
+        },
+        {
+          "id": "fn:inventory-service:InventoryServiceApplication.main",
+          "type": "functionNode",
+          "data": {
+            "label": "main",
+            "name": "main",
+            "className": "InventoryServiceApplication",
+            "serviceName": "Inventory Service",
+            "serviceId": "inventory-service",
+            "signature": "public static void main(String[] args) {",
+            "callsOut": []
+          },
+          "position": {
+            "x": 680,
+            "y": 0
+          }
+        },
+        {
+          "id": "fn:inventory-service:InventoryService.reserve",
+          "type": "functionNode",
+          "data": {
+            "label": "reserve",
+            "name": "reserve",
+            "className": "InventoryService",
+            "serviceName": "Inventory Service",
+            "serviceId": "inventory-service",
+            "signature": "public ReservationResult reserve(OrderCreatedEvent event) {",
+            "callsOut": [
+              {
+                "targetService": "reservation",
+                "targetServiceId": "reservation"
+              }
+            ]
+          },
+          "position": {
+            "x": 1020,
+            "y": 0
+          }
+        },
+        {
+          "id": "fn:inventory-service:InventoryService.createReservation",
+          "type": "functionNode",
+          "data": {
+            "label": "createReservation",
+            "name": "createReservation",
+            "className": "InventoryService",
+            "serviceName": "Inventory Service",
+            "serviceId": "inventory-service",
+            "signature": "private ReservationResult createReservation(OrderCreatedEvent event) {",
+            "callsOut": [
+              {
+                "targetService": "stocklevel",
+                "targetServiceId": "stocklevel"
+              },
+              {
+                "targetService": "reservation",
+                "targetServiceId": "reservation"
+              }
+            ]
+          },
+          "position": {
+            "x": 1020,
+            "y": 160
+          }
+        },
+        {
+          "id": "fn:order-service:KafkaConsumerConfig.validationEventConsumerFactory",
+          "type": "functionNode",
+          "data": {
+            "label": "validationEventConsumerFactory",
+            "name": "validationEventConsumerFactory",
+            "className": "KafkaConsumerConfig",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public ConsumerFactory<String, OrderValidationRequestedEvent> validationEventConsumerFactory() {",
+            "callsOut": []
+          },
+          "position": {
+            "x": 1360,
+            "y": 0
+          }
+        },
+        {
+          "id": "fn:order-service:KafkaProducerConfig.baseProducerProps",
+          "type": "functionNode",
+          "data": {
+            "label": "baseProducerProps",
+            "name": "baseProducerProps",
+            "className": "KafkaProducerConfig",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "private Map<String, Object> baseProducerProps() {",
+            "callsOut": []
+          },
+          "position": {
+            "x": 1700,
+            "y": 0
+          }
+        },
+        {
+          "id": "fn:order-service:KafkaProducerConfig.validationEventProducerFactory",
+          "type": "functionNode",
+          "data": {
+            "label": "validationEventProducerFactory",
+            "name": "validationEventProducerFactory",
+            "className": "KafkaProducerConfig",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public ProducerFactory<String, OrderValidationRequestedEvent> validationEventProducerFactory() {",
+            "callsOut": []
+          },
+          "position": {
+            "x": 1700,
+            "y": 160
+          }
+        },
+        {
+          "id": "fn:order-service:KafkaProducerConfig.validationKafkaTemplate",
+          "type": "functionNode",
+          "data": {
+            "label": "validationKafkaTemplate",
+            "name": "validationKafkaTemplate",
+            "className": "KafkaProducerConfig",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public KafkaTemplate<String, OrderValidationRequestedEvent> validationKafkaTemplate() {",
+            "callsOut": []
+          },
+          "position": {
+            "x": 1700,
+            "y": 320
+          }
+        },
+        {
+          "id": "fn:order-service:KafkaProducerConfig.orderCreatedProducerFactory",
+          "type": "functionNode",
+          "data": {
+            "label": "orderCreatedProducerFactory",
+            "name": "orderCreatedProducerFactory",
+            "className": "KafkaProducerConfig",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public ProducerFactory<String, OrderCreatedEvent> orderCreatedProducerFactory() {",
+            "callsOut": []
+          },
+          "position": {
+            "x": 1700,
+            "y": 480
+          }
+        },
+        {
+          "id": "fn:order-service:KafkaProducerConfig.orderCreatedKafkaTemplate",
+          "type": "functionNode",
+          "data": {
+            "label": "orderCreatedKafkaTemplate",
+            "name": "orderCreatedKafkaTemplate",
+            "className": "KafkaProducerConfig",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public KafkaTemplate<String, OrderCreatedEvent> orderCreatedKafkaTemplate() {",
+            "callsOut": []
+          },
+          "position": {
+            "x": 1700,
+            "y": 640
+          }
+        },
+        {
+          "id": "fn:order-service:OrderValidationConsumer.handleValidationRequested",
+          "type": "functionNode",
+          "data": {
+            "label": "handleValidationRequested",
+            "name": "handleValidationRequested",
+            "className": "OrderValidationConsumer",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public void handleValidationRequested(",
+            "callsOut": [
+              {
+                "targetService": "ordervalidation",
+                "targetServiceId": "ordervalidation"
+              },
+              {
+                "targetService": "order",
+                "targetServiceId": "order"
+              }
+            ]
+          },
+          "position": {
+            "x": 2040,
+            "y": 0
+          }
+        },
+        {
+          "id": "fn:order-service:GlobalExceptionHandler.handleNotFound",
+          "type": "functionNode",
+          "data": {
+            "label": "handleNotFound",
+            "name": "handleNotFound",
+            "className": "GlobalExceptionHandler",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public ProblemDetail handleNotFound(OrderNotFoundException ex) {",
+            "callsOut": []
+          },
+          "position": {
+            "x": 2380,
+            "y": 0
+          }
+        },
+        {
+          "id": "fn:order-service:GlobalExceptionHandler.handleValidation",
+          "type": "functionNode",
+          "data": {
+            "label": "handleValidation",
+            "name": "handleValidation",
+            "className": "GlobalExceptionHandler",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public ProblemDetail handleValidation(MethodArgumentNotValidException ex) {",
+            "callsOut": []
+          },
+          "position": {
+            "x": 2380,
+            "y": 160
+          }
+        },
+        {
+          "id": "fn:order-service:OrderController.createOrder",
+          "type": "functionNode",
+          "data": {
+            "label": "createOrder",
+            "name": "createOrder",
+            "className": "OrderController",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public ResponseEntity<OrderResponse> createOrder(@Valid @RequestBody CreateOrderRequest request) {",
+            "callsOut": [
+              {
+                "targetService": "order",
+                "targetServiceId": "order"
+              }
+            ]
+          },
+          "position": {
+            "x": 2720,
+            "y": 0
+          }
+        },
+        {
+          "id": "fn:order-service:OrderController.updateStatus",
+          "type": "functionNode",
+          "data": {
+            "label": "updateStatus",
+            "name": "updateStatus",
+            "className": "OrderController",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public ResponseEntity<OrderResponse> updateStatus(",
+            "callsOut": [
+              {
+                "targetService": "order",
+                "targetServiceId": "order"
+              }
+            ]
+          },
+          "position": {
+            "x": 2720,
+            "y": 160
+          }
+        },
+        {
+          "id": "fn:order-service:OrderServiceApplication.main",
+          "type": "functionNode",
+          "data": {
+            "label": "main",
+            "name": "main",
+            "className": "OrderServiceApplication",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public static void main(String[] args) {",
+            "callsOut": []
+          },
+          "position": {
+            "x": 3060,
+            "y": 0
+          }
+        },
+        {
+          "id": "fn:order-service:OrderMaintenanceScheduler.cancelExpiredPendingOrders",
+          "type": "functionNode",
+          "data": {
+            "label": "cancelExpiredPendingOrders",
+            "name": "cancelExpiredPendingOrders",
+            "className": "OrderMaintenanceScheduler",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public void cancelExpiredPendingOrders() {",
+            "callsOut": [
+              {
+                "targetService": "order",
+                "targetServiceId": "order"
+              },
+              {
+                "targetService": "notification",
+                "targetServiceId": "notification"
+              }
+            ]
+          },
+          "position": {
+            "x": 3400,
+            "y": 0
+          }
+        },
+        {
+          "id": "fn:order-service:OrderMaintenanceScheduler.generateDailySalesReport",
+          "type": "functionNode",
+          "data": {
+            "label": "generateDailySalesReport",
+            "name": "generateDailySalesReport",
+            "className": "OrderMaintenanceScheduler",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public void generateDailySalesReport() {",
+            "callsOut": [
+              {
+                "targetService": "reporting",
+                "targetServiceId": "reporting"
+              }
+            ]
+          },
+          "position": {
+            "x": 3400,
+            "y": 160
+          }
+        },
+        {
+          "id": "fn:order-service:OrderMaintenanceScheduler.archiveOldOrders",
+          "type": "functionNode",
+          "data": {
+            "label": "archiveOldOrders",
+            "name": "archiveOldOrders",
+            "className": "OrderMaintenanceScheduler",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public void archiveOldOrders() {",
+            "callsOut": [
+              {
+                "targetService": "order",
+                "targetServiceId": "order"
+              }
+            ]
+          },
+          "position": {
+            "x": 3400,
+            "y": 320
+          }
+        },
+        {
+          "id": "fn:order-service:CustomerProfileService.validate",
+          "type": "functionNode",
+          "data": {
+            "label": "validate",
+            "name": "validate",
+            "className": "CustomerProfileService",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public void validate(OrderValidationRequestedEvent event) {",
+            "callsOut": []
+          },
+          "position": {
+            "x": 3740,
+            "y": 0
+          }
+        },
+        {
+          "id": "fn:order-service:CustomerProfileService.fetchProfile",
+          "type": "functionNode",
+          "data": {
+            "label": "fetchProfile",
+            "name": "fetchProfile",
+            "className": "CustomerProfileService",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public CustomerProfile fetchProfile(String customerId) {",
+            "callsOut": []
+          },
+          "position": {
+            "x": 3740,
+            "y": 160
+          }
+        },
+        {
+          "id": "fn:order-service:CustomerProfileService.CustomerProfile",
+          "type": "functionNode",
+          "data": {
+            "label": "CustomerProfile",
+            "name": "CustomerProfile",
+            "className": "CustomerProfileService",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public record CustomerProfile(String customerId, String email) {",
+            "callsOut": []
+          },
+          "position": {
+            "x": 3740,
+            "y": 320
+          }
+        },
+        {
+          "id": "fn:order-service:CustomerProfileService.checkBlacklist",
+          "type": "functionNode",
+          "data": {
+            "label": "checkBlacklist",
+            "name": "checkBlacklist",
+            "className": "CustomerProfileService",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "private void checkBlacklist(String customerId) {",
+            "callsOut": []
+          },
+          "position": {
+            "x": 3740,
+            "y": 480
+          }
+        },
+        {
+          "id": "fn:order-service:CustomerProfileService.checkDailyOrderLimit",
+          "type": "functionNode",
+          "data": {
+            "label": "checkDailyOrderLimit",
+            "name": "checkDailyOrderLimit",
+            "className": "CustomerProfileService",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "private void checkDailyOrderLimit(String customerId) {",
+            "callsOut": [
+              {
+                "targetService": "order",
+                "targetServiceId": "order"
+              }
+            ]
+          },
+          "position": {
+            "x": 3740,
+            "y": 640
+          }
+        },
+        {
+          "id": "fn:order-service:CustomerProfileService.checkOrderValueLimit",
+          "type": "functionNode",
+          "data": {
+            "label": "checkOrderValueLimit",
+            "name": "checkOrderValueLimit",
+            "className": "CustomerProfileService",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "private void checkOrderValueLimit(BigDecimal unitPrice, int quantity, String customerId) {",
+            "callsOut": []
+          },
+          "position": {
+            "x": 3740,
+            "y": 800
+          }
+        },
+        {
+          "id": "fn:order-service:FraudCheckService.assess",
+          "type": "functionNode",
+          "data": {
+            "label": "assess",
+            "name": "assess",
+            "className": "FraudCheckService",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public int assess(OrderValidationRequestedEvent event) {",
+            "callsOut": []
+          },
+          "position": {
+            "x": 4080,
+            "y": 0
+          }
+        },
+        {
+          "id": "fn:order-service:FraudCheckService.checkVelocity",
+          "type": "functionNode",
+          "data": {
+            "label": "checkVelocity",
+            "name": "checkVelocity",
+            "className": "FraudCheckService",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "private int checkVelocity(String customerId) {",
+            "callsOut": [
+              {
+                "targetService": "order",
+                "targetServiceId": "order"
+              }
+            ]
+          },
+          "position": {
+            "x": 4080,
+            "y": 160
+          }
+        },
+        {
+          "id": "fn:order-service:FraudCheckService.checkHighValueThreshold",
+          "type": "functionNode",
+          "data": {
+            "label": "checkHighValueThreshold",
+            "name": "checkHighValueThreshold",
+            "className": "FraudCheckService",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "private int checkHighValueThreshold(BigDecimal unitPrice, int quantity) {",
+            "callsOut": []
+          },
+          "position": {
+            "x": 4080,
+            "y": 320
+          }
+        },
+        {
+          "id": "fn:order-service:FraudCheckService.evaluateRiskScore",
+          "type": "functionNode",
+          "data": {
+            "label": "evaluateRiskScore",
+            "name": "evaluateRiskScore",
+            "className": "FraudCheckService",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "private int evaluateRiskScore(int velocityScore, int highValueScore) {",
+            "callsOut": []
+          },
+          "position": {
+            "x": 4080,
+            "y": 480
+          }
+        },
+        {
+          "id": "fn:order-service:NotificationService.sendOrderConfirmationEmail",
+          "type": "functionNode",
+          "data": {
+            "label": "sendOrderConfirmationEmail",
+            "name": "sendOrderConfirmationEmail",
+            "className": "NotificationService",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public void sendOrderConfirmationEmail(UUID orderId, String customerId) {",
+            "callsOut": [
+              {
+                "targetService": "customerprofile",
+                "targetServiceId": "customerprofile"
+              }
+            ]
+          },
+          "position": {
+            "x": 4420,
+            "y": 0
+          }
+        },
+        {
+          "id": "fn:order-service:NotificationService.sendOrderCancellationNotice",
+          "type": "functionNode",
+          "data": {
+            "label": "sendOrderCancellationNotice",
+            "name": "sendOrderCancellationNotice",
+            "className": "NotificationService",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public void sendOrderCancellationNotice(UUID orderId, String customerId) {",
+            "callsOut": [
+              {
+                "targetService": "customerprofile",
+                "targetServiceId": "customerprofile"
+              }
+            ]
+          },
+          "position": {
+            "x": 4420,
+            "y": 160
+          }
+        },
+        {
+          "id": "fn:order-service:NotificationService.sendFraudAlert",
+          "type": "functionNode",
+          "data": {
+            "label": "sendFraudAlert",
+            "name": "sendFraudAlert",
+            "className": "NotificationService",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public void sendFraudAlert(UUID orderId, String customerId) {",
+            "callsOut": [
+              {
+                "targetService": "customerprofile",
+                "targetServiceId": "customerprofile"
+              }
+            ]
+          },
+          "position": {
+            "x": 4420,
+            "y": 320
+          }
+        },
+        {
+          "id": "fn:order-service:OrderService.initiateOrder",
+          "type": "functionNode",
+          "data": {
+            "label": "initiateOrder",
+            "name": "initiateOrder",
+            "className": "OrderService",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public OrderResponse initiateOrder(CreateOrderRequest request) {",
+            "callsOut": [
+              {
+                "targetService": "order",
+                "targetServiceId": "order"
+              }
+            ]
+          },
+          "position": {
+            "x": 4760,
+            "y": 0
+          }
+        },
+        {
+          "id": "fn:order-service:OrderService.confirmOrder",
+          "type": "functionNode",
+          "data": {
+            "label": "confirmOrder",
+            "name": "confirmOrder",
+            "className": "OrderService",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public void confirmOrder(UUID orderId, BigDecimal finalUnitPrice, BigDecimal finalTotalPrice) {",
+            "callsOut": [
+              {
+                "targetService": "order",
+                "targetServiceId": "order"
+              }
+            ]
+          },
+          "position": {
+            "x": 4760,
+            "y": 160
+          }
+        },
+        {
+          "id": "fn:order-service:OrderService.rejectOrder",
+          "type": "functionNode",
+          "data": {
+            "label": "rejectOrder",
+            "name": "rejectOrder",
+            "className": "OrderService",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public void rejectOrder(UUID orderId, String reason) {",
+            "callsOut": [
+              {
+                "targetService": "order",
+                "targetServiceId": "order"
+              }
+            ]
+          },
+          "position": {
+            "x": 4760,
+            "y": 320
+          }
+        },
+        {
+          "id": "fn:order-service:OrderService.updateStatus",
+          "type": "functionNode",
+          "data": {
+            "label": "updateStatus",
+            "name": "updateStatus",
+            "className": "OrderService",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public OrderResponse updateStatus(UUID id, UpdateOrderStatusRequest request) {",
+            "callsOut": [
+              {
+                "targetService": "order",
+                "targetServiceId": "order"
+              }
+            ]
+          },
+          "position": {
+            "x": 4760,
+            "y": 480
+          }
+        },
+        {
+          "id": "fn:order-service:OrderService.findExpiredPendingOrders",
+          "type": "functionNode",
+          "data": {
+            "label": "findExpiredPendingOrders",
+            "name": "findExpiredPendingOrders",
+            "className": "OrderService",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public List<Order> findExpiredPendingOrders(Instant before) {",
+            "callsOut": [
+              {
+                "targetService": "order",
+                "targetServiceId": "order"
+              }
+            ]
+          },
+          "position": {
+            "x": 4760,
+            "y": 640
+          }
+        },
+        {
+          "id": "fn:order-service:OrderService.archiveOrdersBefore",
+          "type": "functionNode",
+          "data": {
+            "label": "archiveOrdersBefore",
+            "name": "archiveOrdersBefore",
+            "className": "OrderService",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public int archiveOrdersBefore(Instant cutoff) {",
+            "callsOut": [
+              {
+                "targetService": "order",
+                "targetServiceId": "order"
+              }
+            ]
+          },
+          "position": {
+            "x": 4760,
+            "y": 800
+          }
+        },
+        {
+          "id": "fn:order-service:OrderValidationService.validate",
+          "type": "functionNode",
+          "data": {
+            "label": "validate",
+            "name": "validate",
+            "className": "OrderValidationService",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public ValidationResult validate(OrderValidationRequestedEvent event) {",
+            "callsOut": [
+              {
+                "targetService": "fraudcheck",
+                "targetServiceId": "fraudcheck"
+              },
+              {
+                "targetService": "customerprofile",
+                "targetServiceId": "customerprofile"
+              },
+              {
+                "targetService": "pricing",
+                "targetServiceId": "pricing"
+              }
+            ]
+          },
+          "position": {
+            "x": 5100,
+            "y": 0
+          }
+        },
+        {
+          "id": "fn:order-service:OrderValidationService.resolveCustomerOutcome",
+          "type": "functionNode",
+          "data": {
+            "label": "resolveCustomerOutcome",
+            "name": "resolveCustomerOutcome",
+            "className": "OrderValidationService",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "private ValidationOutcome resolveCustomerOutcome(String message) {",
+            "callsOut": []
+          },
+          "position": {
+            "x": 5100,
+            "y": 160
+          }
+        },
+        {
+          "id": "fn:order-service:PricingService.applyVolumeDiscount",
+          "type": "functionNode",
+          "data": {
+            "label": "applyVolumeDiscount",
+            "name": "applyVolumeDiscount",
+            "className": "PricingService",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "private BigDecimal applyVolumeDiscount(BigDecimal unitPrice, int quantity) {",
+            "callsOut": []
+          },
+          "position": {
+            "x": 5440,
+            "y": 0
+          }
+        },
+        {
+          "id": "fn:order-service:PricingService.applyCustomerDiscount",
+          "type": "functionNode",
+          "data": {
+            "label": "applyCustomerDiscount",
+            "name": "applyCustomerDiscount",
+            "className": "PricingService",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "private BigDecimal applyCustomerDiscount(BigDecimal unitPrice, String customerId) {",
+            "callsOut": []
+          },
+          "position": {
+            "x": 5440,
+            "y": 160
+          }
+        },
+        {
+          "id": "fn:order-service:PricingService.calculateTotal",
+          "type": "functionNode",
+          "data": {
+            "label": "calculateTotal",
+            "name": "calculateTotal",
+            "className": "PricingService",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public BigDecimal calculateTotal(BigDecimal unitPrice, int quantity) {",
+            "callsOut": []
+          },
+          "position": {
+            "x": 5440,
+            "y": 320
+          }
+        },
+        {
+          "id": "fn:order-service:PricingService.calculateTax",
+          "type": "functionNode",
+          "data": {
+            "label": "calculateTax",
+            "name": "calculateTax",
+            "className": "PricingService",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "private BigDecimal calculateTax(BigDecimal unitPrice) {",
+            "callsOut": []
+          },
+          "position": {
+            "x": 5440,
+            "y": 480
+          }
+        },
+        {
+          "id": "fn:order-service:ReportingService.buildDailySummary",
+          "type": "functionNode",
+          "data": {
+            "label": "buildDailySummary",
+            "name": "buildDailySummary",
+            "className": "ReportingService",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public DailySummaryReport buildDailySummary(Instant dayStart) {",
+            "callsOut": [
+              {
+                "targetService": "order",
+                "targetServiceId": "order"
+              },
+              {
+                "targetService": "pricing",
+                "targetServiceId": "pricing"
+              },
+              {
+                "targetService": "dailysummaryre",
+                "targetServiceId": "dailysummaryre"
+              }
+            ]
+          },
+          "position": {
+            "x": 5780,
+            "y": 0
+          }
+        },
+        {
+          "id": "fn:order-service:ReportingService.publishSummary",
+          "type": "functionNode",
+          "data": {
+            "label": "publishSummary",
+            "name": "publishSummary",
+            "className": "ReportingService",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public void publishSummary(DailySummaryReport report) {",
+            "callsOut": [
+              {
+                "targetService": "re",
+                "targetServiceId": "re"
+              }
+            ]
+          },
+          "position": {
+            "x": 5780,
+            "y": 160
+          }
+        },
+        {
+          "id": "fn:order-service:ReportingService.calculateMonthlyRevenue",
+          "type": "functionNode",
+          "data": {
+            "label": "calculateMonthlyRevenue",
+            "name": "calculateMonthlyRevenue",
+            "className": "ReportingService",
+            "serviceName": "Order Service",
+            "serviceId": "order-service",
+            "signature": "public BigDecimal calculateMonthlyRevenue(Instant monthStart) {",
+            "callsOut": [
+              {
+                "targetService": "order",
+                "targetServiceId": "order"
+              },
+              {
+                "targetService": "pricing",
+                "targetServiceId": "pricing"
+              }
+            ]
+          },
+          "position": {
+            "x": 5780,
+            "y": 320
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "fn:inventory-service:OrderCreatedConsumer.handleOrderCreated→fn:inventory-service:InventoryService.reserve",
+          "source": "fn:inventory-service:OrderCreatedConsumer.handleOrderCreated",
+          "target": "fn:inventory-service:InventoryService.reserve",
+          "label": "inventoryService",
+          "animated": false
+        },
+        {
+          "id": "fn:inventory-service:InventoryService.reserve→fn:inventory-service:InventoryService.createReservation",
+          "source": "fn:inventory-service:InventoryService.reserve",
+          "target": "fn:inventory-service:InventoryService.createReservation",
+          "label": "calls",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:KafkaProducerConfig.validationEventProducerFactory→fn:order-service:KafkaProducerConfig.baseProducerProps",
+          "source": "fn:order-service:KafkaProducerConfig.validationEventProducerFactory",
+          "target": "fn:order-service:KafkaProducerConfig.baseProducerProps",
+          "label": "calls",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:KafkaProducerConfig.validationKafkaTemplate→fn:order-service:KafkaProducerConfig.validationEventProducerFactory",
+          "source": "fn:order-service:KafkaProducerConfig.validationKafkaTemplate",
+          "target": "fn:order-service:KafkaProducerConfig.validationEventProducerFactory",
+          "label": "calls",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:KafkaProducerConfig.orderCreatedProducerFactory→fn:order-service:KafkaProducerConfig.baseProducerProps",
+          "source": "fn:order-service:KafkaProducerConfig.orderCreatedProducerFactory",
+          "target": "fn:order-service:KafkaProducerConfig.baseProducerProps",
+          "label": "calls",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:KafkaProducerConfig.orderCreatedKafkaTemplate→fn:order-service:KafkaProducerConfig.orderCreatedProducerFactory",
+          "source": "fn:order-service:KafkaProducerConfig.orderCreatedKafkaTemplate",
+          "target": "fn:order-service:KafkaProducerConfig.orderCreatedProducerFactory",
+          "label": "calls",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:OrderValidationConsumer.handleValidationRequested→fn:order-service:CustomerProfileService.validate",
+          "source": "fn:order-service:OrderValidationConsumer.handleValidationRequested",
+          "target": "fn:order-service:CustomerProfileService.validate",
+          "label": "orderValidationService",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:OrderValidationConsumer.handleValidationRequested→fn:order-service:OrderService.confirmOrder",
+          "source": "fn:order-service:OrderValidationConsumer.handleValidationRequested",
+          "target": "fn:order-service:OrderService.confirmOrder",
+          "label": "orderService",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:OrderValidationConsumer.handleValidationRequested→fn:order-service:OrderService.rejectOrder",
+          "source": "fn:order-service:OrderValidationConsumer.handleValidationRequested",
+          "target": "fn:order-service:OrderService.rejectOrder",
+          "label": "orderService",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:OrderController.createOrder→fn:order-service:OrderService.initiateOrder",
+          "source": "fn:order-service:OrderController.createOrder",
+          "target": "fn:order-service:OrderService.initiateOrder",
+          "label": "orderService",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:OrderMaintenanceScheduler.cancelExpiredPendingOrders→fn:order-service:OrderService.findExpiredPendingOrders",
+          "source": "fn:order-service:OrderMaintenanceScheduler.cancelExpiredPendingOrders",
+          "target": "fn:order-service:OrderService.findExpiredPendingOrders",
+          "label": "orderService",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:OrderMaintenanceScheduler.cancelExpiredPendingOrders→fn:order-service:OrderService.rejectOrder",
+          "source": "fn:order-service:OrderMaintenanceScheduler.cancelExpiredPendingOrders",
+          "target": "fn:order-service:OrderService.rejectOrder",
+          "label": "orderService",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:OrderMaintenanceScheduler.cancelExpiredPendingOrders→fn:order-service:NotificationService.sendOrderCancellationNotice",
+          "source": "fn:order-service:OrderMaintenanceScheduler.cancelExpiredPendingOrders",
+          "target": "fn:order-service:NotificationService.sendOrderCancellationNotice",
+          "label": "notificationService",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:OrderMaintenanceScheduler.generateDailySalesReport→fn:order-service:ReportingService.buildDailySummary",
+          "source": "fn:order-service:OrderMaintenanceScheduler.generateDailySalesReport",
+          "target": "fn:order-service:ReportingService.buildDailySummary",
+          "label": "reportingService",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:OrderMaintenanceScheduler.generateDailySalesReport→fn:order-service:ReportingService.publishSummary",
+          "source": "fn:order-service:OrderMaintenanceScheduler.generateDailySalesReport",
+          "target": "fn:order-service:ReportingService.publishSummary",
+          "label": "reportingService",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:OrderMaintenanceScheduler.archiveOldOrders→fn:order-service:OrderService.archiveOrdersBefore",
+          "source": "fn:order-service:OrderMaintenanceScheduler.archiveOldOrders",
+          "target": "fn:order-service:OrderService.archiveOrdersBefore",
+          "label": "orderService",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:CustomerProfileService.validate→fn:order-service:CustomerProfileService.checkBlacklist",
+          "source": "fn:order-service:CustomerProfileService.validate",
+          "target": "fn:order-service:CustomerProfileService.checkBlacklist",
+          "label": "calls",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:CustomerProfileService.validate→fn:order-service:CustomerProfileService.checkDailyOrderLimit",
+          "source": "fn:order-service:CustomerProfileService.validate",
+          "target": "fn:order-service:CustomerProfileService.checkDailyOrderLimit",
+          "label": "calls",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:CustomerProfileService.validate→fn:order-service:CustomerProfileService.checkOrderValueLimit",
+          "source": "fn:order-service:CustomerProfileService.validate",
+          "target": "fn:order-service:CustomerProfileService.checkOrderValueLimit",
+          "label": "calls",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:CustomerProfileService.fetchProfile→fn:order-service:CustomerProfileService.CustomerProfile",
+          "source": "fn:order-service:CustomerProfileService.fetchProfile",
+          "target": "fn:order-service:CustomerProfileService.CustomerProfile",
+          "label": "calls",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:FraudCheckService.assess→fn:order-service:FraudCheckService.checkVelocity",
+          "source": "fn:order-service:FraudCheckService.assess",
+          "target": "fn:order-service:FraudCheckService.checkVelocity",
+          "label": "calls",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:FraudCheckService.assess→fn:order-service:FraudCheckService.checkHighValueThreshold",
+          "source": "fn:order-service:FraudCheckService.assess",
+          "target": "fn:order-service:FraudCheckService.checkHighValueThreshold",
+          "label": "calls",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:FraudCheckService.assess→fn:order-service:FraudCheckService.evaluateRiskScore",
+          "source": "fn:order-service:FraudCheckService.assess",
+          "target": "fn:order-service:FraudCheckService.evaluateRiskScore",
+          "label": "calls",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:NotificationService.sendOrderConfirmationEmail→fn:order-service:CustomerProfileService.fetchProfile",
+          "source": "fn:order-service:NotificationService.sendOrderConfirmationEmail",
+          "target": "fn:order-service:CustomerProfileService.fetchProfile",
+          "label": "customerProfileService",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:NotificationService.sendOrderCancellationNotice→fn:order-service:CustomerProfileService.fetchProfile",
+          "source": "fn:order-service:NotificationService.sendOrderCancellationNotice",
+          "target": "fn:order-service:CustomerProfileService.fetchProfile",
+          "label": "customerProfileService",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:NotificationService.sendFraudAlert→fn:order-service:CustomerProfileService.fetchProfile",
+          "source": "fn:order-service:NotificationService.sendFraudAlert",
+          "target": "fn:order-service:CustomerProfileService.fetchProfile",
+          "label": "customerProfileService",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:OrderValidationService.validate→fn:order-service:OrderValidationService.resolveCustomerOutcome",
+          "source": "fn:order-service:OrderValidationService.validate",
+          "target": "fn:order-service:OrderValidationService.resolveCustomerOutcome",
+          "label": "calls",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:OrderValidationService.validate→fn:order-service:FraudCheckService.assess",
+          "source": "fn:order-service:OrderValidationService.validate",
+          "target": "fn:order-service:FraudCheckService.assess",
+          "label": "fraudCheckService",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:OrderValidationService.validate→fn:order-service:CustomerProfileService.validate",
+          "source": "fn:order-service:OrderValidationService.validate",
+          "target": "fn:order-service:CustomerProfileService.validate",
+          "label": "customerProfileService",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:PricingService.calculateTotal→fn:order-service:PricingService.calculateTax",
+          "source": "fn:order-service:PricingService.calculateTotal",
+          "target": "fn:order-service:PricingService.calculateTax",
+          "label": "calls",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:ReportingService.buildDailySummary→fn:order-service:PricingService.calculateTotal",
+          "source": "fn:order-service:ReportingService.buildDailySummary",
+          "target": "fn:order-service:PricingService.calculateTotal",
+          "label": "pricingService",
+          "animated": false
+        },
+        {
+          "id": "fn:order-service:ReportingService.calculateMonthlyRevenue→fn:order-service:PricingService.calculateTotal",
+          "source": "fn:order-service:ReportingService.calculateMonthlyRevenue",
+          "target": "fn:order-service:PricingService.calculateTotal",
+          "label": "pricingService",
+          "animated": false
+        }
+      ]
+    },
+    "containerDiagram": {
+      "nodes": [
+        {
+          "id": "group:commerce",
+          "type": "group",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "data": {
+            "label": "commerce"
+          },
+          "style": {
+            "width": 360,
+            "height": 560,
+            "backgroundColor": "rgba(55,65,81,0.3)",
+            "borderColor": "#374151",
+            "borderRadius": 8
+          }
+        },
+        {
+          "id": "inventory-service",
+          "type": "serviceNode",
+          "position": {
+            "x": 60,
+            "y": 60
+          },
+          "parentId": "group:commerce",
+          "extent": "parent",
+          "data": {
+            "label": "Inventory Service",
+            "name": "Inventory Service",
+            "repoName": "inventory-service",
+            "repoUrl": "file://C:/Users/abdul/projects/fun/docktail/services/inventory-service",
+            "language": "Java",
+            "summary": "Consumes order.created events from Kafka and reserves stock in PostgreSQL",
+            "endpoints": [],
+            "serviceType": "service",
+            "domain": "commerce",
+            "tags": [
+              "kafka-consumer",
+              "postgres"
+            ]
+          }
+        },
+        {
+          "id": "order-service",
+          "type": "serviceNode",
+          "position": {
+            "x": 60,
+            "y": 280
+          },
+          "parentId": "group:commerce",
+          "extent": "parent",
+          "data": {
+            "label": "Order Service",
+            "name": "Order Service",
+            "repoName": "order-service",
+            "repoUrl": "file://C:/Users/abdul/projects/fun/docktail/services/order-service",
+            "language": "Java",
+            "summary": "Accepts order creation requests via REST, persists to PostgreSQL, and publishes order.created events to Kafka",
+            "endpoints": [
+              {
+                "method": "POST",
+                "path": "/api/v1/orders",
+                "inputType": "CreateOrderRequest",
+                "outputType": "ResponseEntity<OrderResponse>"
+              },
+              {
+                "method": "GET",
+                "path": "/api/v1/orders/{id}",
+                "outputType": "ResponseEntity<OrderResponse>"
+              },
+              {
+                "method": "GET",
+                "path": "/api/v1/orders"
+              },
+              {
+                "method": "PATCH",
+                "path": "/api/v1/orders/{id}/status",
+                "inputType": "UpdateOrderStatusRequest",
+                "outputType": "ResponseEntity<OrderResponse>"
+              }
+            ],
+            "serviceType": "service",
+            "domain": "commerce",
+            "tags": [
+              "rest",
+              "kafka-producer",
+              "postgres",
+              "critical"
+            ]
+          }
+        },
+        {
+          "id": "inventory-db",
+          "type": "databaseNode",
+          "data": {
+            "label": "Inventory DB",
+            "name": "Inventory DB",
+            "technology": "PostgreSQL 14",
+            "description": "Inventory data store",
+            "ref": "./infra/postgres-archmap.yml"
+          },
+          "position": {
+            "x": 0,
+            "y": 560
+          }
+        },
+        {
+          "id": "kafka",
+          "type": "queueNode",
+          "data": {
+            "label": "Apache Kafka",
+            "name": "Apache Kafka",
+            "technology": "Apache Kafka",
+            "description": "Shared event streaming platform",
+            "ref": "./infra/kafka-archmap.yml"
+          },
+          "position": {
+            "x": 260,
+            "y": 560
+          }
+        },
+        {
+          "id": "orders-db",
+          "type": "databaseNode",
+          "data": {
+            "label": "Orders DB",
+            "name": "Orders DB",
+            "technology": "PostgreSQL 14",
+            "description": "Primary relational store for order records",
+            "ref": "./infra/postgres-archmap.yml"
+          },
+          "position": {
+            "x": 0,
+            "y": 760
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "container:inventory-service→inventory-db",
+          "source": "inventory-service",
+          "target": "inventory-db",
+          "label": "persists to",
+          "markerEnd": "arrow",
+          "type": "smoothstep",
+          "animated": false
+        },
+        {
+          "id": "container:inventory-service→kafka",
+          "source": "inventory-service",
+          "target": "kafka",
+          "label": "subscribes to",
+          "markerEnd": "arrow",
+          "type": "smoothstep",
+          "animated": false
+        },
+        {
+          "id": "container:order-service→orders-db",
+          "source": "order-service",
+          "target": "orders-db",
+          "label": "persists to",
+          "markerEnd": "arrow",
+          "type": "smoothstep",
+          "animated": false
+        },
+        {
+          "id": "container:order-service→kafka",
+          "source": "order-service",
+          "target": "kafka",
+          "label": "subscribes to",
+          "markerEnd": "arrow",
+          "type": "smoothstep",
+          "animated": false
+        }
+      ]
+    }
+  }
+}

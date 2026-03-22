@@ -9,10 +9,12 @@ interface DataTypeNodeData {
   fields: DataTypeField[];
   producedBy: string[];
   consumedBy: string[];
+  isEnum?: boolean;
 }
 
 export default function DataTypeNode({ data }: NodeProps) {
   const d = data as unknown as DataTypeNodeData;
+  const isEnum = d.isEnum ?? false;
 
   return (
     <>
@@ -20,22 +22,21 @@ export default function DataTypeNode({ data }: NodeProps) {
       <Handle type="target" position={Position.Left}   id="target-left" />
       <Handle type="target" position={Position.Right}  id="target-right" />
       <Handle type="target" position={Position.Bottom} id="target-bottom" />
-      <div className="bg-gray-900 border border-purple-800 rounded-lg p-3 min-w-[160px] max-w-[220px] shadow-lg">
+      <div className={`bg-gray-900 rounded-lg p-3 min-w-[200px] shadow-lg border ${isEnum ? "border-amber-600" : "border-purple-800"}`}>
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs bg-purple-900 text-purple-300 px-1.5 py-0.5 rounded">DTO</span>
-          <span className="text-white font-semibold text-sm truncate">{d.name}</span>
+          <span className={`text-xs px-1.5 py-0.5 rounded ${isEnum ? "bg-amber-900 text-amber-300" : "bg-purple-900 text-purple-300"}`}>
+            {isEnum ? "ENUM" : "DTO"}
+          </span>
+          <span className="text-white font-semibold text-sm">{d.name}</span>
         </div>
         {d.fields && d.fields.length > 0 && (
           <ul className="space-y-0.5 mt-1">
-            {d.fields.slice(0, 6).map((f, i) => (
-              <li key={i} className="text-xs font-mono text-gray-300 flex gap-1">
-                <span className="text-purple-400 shrink-0">{f.name}</span>
-                <span className="text-gray-500">: {f.type}</span>
+            {d.fields.map((f, i) => (
+              <li key={i} className={`text-xs font-mono flex gap-1 ${isEnum ? "text-amber-400" : "text-gray-300"}`}>
+                <span className="shrink-0">{f.name}</span>
+                {!isEnum && <span className="text-gray-500">: {f.type}</span>}
               </li>
             ))}
-            {d.fields.length > 6 && (
-              <li className="text-xs text-gray-500">+{d.fields.length - 6} more</li>
-            )}
           </ul>
         )}
       </div>

@@ -24,6 +24,42 @@ export function extractDataTypes(file: FileContent): DetectedDataType[] {
   while (i < lines.length) {
     const line = lines[i].trim();
 
+    // Detect enum declaration
+    const enumM = line.match(/(?:public\s+)?enum\s+(\w+)/);
+    if (enumM) {
+      const name = enumM[1];
+      // Collect enum constants (first line(s) inside braces before the semicolon or closing brace)
+      const bodyLines: string[] = [];
+      let depth = 0;
+      let started = false;
+      for (let j = i; j < Math.min(i + 30, lines.length); j++) {
+        const bl = lines[j];
+        for (const ch of bl) {
+          if (ch === "{") { depth++; started = true; }
+          if (ch === "}") depth--;
+        }
+        if (started) bodyLines.push(bl);
+        if (started && depth === 0) break;
+      }
+      const body = bodyLines.join(" ");
+      // Slice everything after the opening brace to avoid mixing the declaration line
+      const braceIdx = body.indexOf("{");
+      const constantsSection = (braceIdx >= 0 ? body.slice(braceIdx + 1) : body).split(/;|\}/)[0];
+      const constants = constantsSection
+        .split(",")
+        .map((s) => s.replace(/\(.*?\)/g, "").trim())
+        .filter((s) => /^[A-Z][A-Z0-9_]*$/.test(s));
+      if (constants.length > 0) {
+        results.push({
+          name,
+          fields: constants.map((c) => ({ name: c, type: "enum constant" })),
+          role: "dto",
+        });
+      }
+      i++;
+      continue;
+    }
+
     // Detect class declaration
     const classM = line.match(/(?:public\s+)?(?:data\s+)?class\s+(\w+)/);
     if (!classM) { i++; continue; }

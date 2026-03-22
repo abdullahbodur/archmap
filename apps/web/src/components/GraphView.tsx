@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback, useMemo, useRef } from "react";
+import { useEffect, useCallback, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -16,22 +16,27 @@ import {
 import "@xyflow/react/dist/style.css";
 import type { GraphView as GraphViewData, AnalyzedService } from "@/types/graph";
 import type { ViewTab } from "./GraphTabs";
-import { buildKindMap } from "@/lib/classify";
+import { buildKindMap, type FunctionKind } from "@/lib/classify";
 import { buildServiceContainerView } from "@/lib/buildServiceContainer";
+import { COLLAPSED_H } from "@/lib/buildFunctionFlowView";
 import ServiceNode from "./nodes/ServiceNode";
 import DataTypeNode from "./nodes/DataTypeNode";
 import FunctionNode from "./nodes/FunctionNode";
+import ClassGroupNode from "./nodes/ClassGroupNode";
 import DatabaseNode from "./nodes/DatabaseNode";
 import QueueNode from "./nodes/QueueNode";
 import CacheNode from "./nodes/CacheNode";
 import ExternalNode from "./nodes/ExternalNode";
 import ServiceSearch from "./ServiceSearch";
+import DtoJsonModal from "./DtoJsonModal";
 import { getLayoutedElements } from "@/lib/layout";
+import type { DataType } from "@/types/graph";
 
 const nodeTypes = {
   serviceNode: ServiceNode,
   dataTypeNode: DataTypeNode,
   functionNode: FunctionNode,
+  classGroupNode: ClassGroupNode,
   databaseNode: DatabaseNode,
   queueNode: QueueNode,
   cacheNode: CacheNode,
@@ -77,6 +82,9 @@ function getAbsoluteCenter(
  *   going down   → bottom, right, left, top
  *   going up     → top,   right, left, bottom
  */
+// Curvature values assigned round-robin to parallel edges so they arc apart
+const PARALLEL_CURVATURES = [0.3, 0.6, 0.15, 0.75, 0.45];
+
 function routeEdges(edges: any[], nodeMap: Map<string, any>): any[] {
   const usage = new Map<string, number>(); // `${nodeId}:${handleId}` → count
 
@@ -93,6 +101,14 @@ function routeEdges(edges: any[], nodeMap: Map<string, any>): any[] {
       if (c < bestCount) { bestCount = c; best = prefs[i]; }
     }
     return best;
+  }
+
+  // Count parallel edges (same source→target) to assign different curvatures
+  const pairCount = new Map<string, number>();
+  const pairIndex = new Map<string, number>();
+  for (const e of edges) {
+    const key = `${e.source}→${e.target}`;
+    pairCount.set(key, (pairCount.get(key) ?? 0) + 1);
   }
 
   return edges.map((e) => {
@@ -127,20 +143,28 @@ function routeEdges(edges: any[], nodeMap: Map<string, any>): any[] {
     inc(e.source, sourceHandle);
     inc(e.target, targetHandle);
 
-    // markerEnd: accept both string "arrow" (from graph-builder) and already-
-    // converted { type: "arrow" } objects (when re-routing after auto-layout).
+    // Assign different curvatures to parallel edges so they arc apart visually
+    const pairKey = `${e.source}→${e.target}`;
+    const total = pairCount.get(pairKey) ?? 1;
+    const idx   = pairIndex.get(pairKey) ?? 0;
+    pairIndex.set(pairKey, idx + 1);
+    const curvature = total > 1
+      ? PARALLEL_CURVATURES[idx % PARALLEL_CURVATURES.length]
+      : 0.25;
+
     const markerEnd = e.markerEnd
-      ? typeof e.markerEnd === "string" ? { type: e.markerEnd } : e.markerEnd
+      ? typeof e.markerEnd === "string"
+        ? { type: "arrowclosed", width: 16, height: 16 }
+        : e.markerEnd
       : undefined;
 
     return {
       ...e,
-      // smoothstep produces orthogonal (right-angle) paths that travel through
-      // the channels between nodes instead of cutting diagonally across them.
-      type: e.type ?? "smoothstep",
+      type: "bezier",
       sourceHandle,
       targetHandle,
-...(markerEnd ? { markerEnd } : {}),
+      pathOptions: { curvature },
+      ...(markerEnd ? { markerEnd } : {}),
     };
   });
 }
@@ -167,6 +191,11 @@ function GraphCanvas({
   onSelectedServiceChange,
   onDrillIn,
 }: Omit<Props, "serviceCount">) {
+  const [selectedDto, setSelectedDto] = useState<DataType | null>(null);
+  const [hiddenKinds, setHiddenKinds] = useState<Set<FunctionKind>>(new Set());
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+
   // ── 0. Per-service container view (built dynamically in the frontend) ─────
   // Must be memoised — buildServiceContainerView allocates new arrays every call,
   // so an unmemoised value would change reference on every render and trigger the
@@ -181,76 +210,138 @@ function GraphCanvas({
   }, [viewType, selectedServiceId, view]);
 
   // ── 1. Filter nodes and edges ─────────────────────────────────────────────
-  const serviceFilteredNodes =
-    viewType === "functionFlow" && selectedServiceId
-      ? activeView.nodes.filter((n) => (n.data as any).serviceId === selectedServiceId)
-      : activeView.nodes;
+  const isServiceFiltered = (viewType === "functionFlow" || viewType === "dataFlow") && selectedServiceId;
+
+  const serviceFilteredNodes = isServiceFiltered
+    ? activeView.nodes.filter((n) => (n.data as any).serviceId === selectedServiceId)
+    : activeView.nodes;
 
   const serviceFilteredNodeIds = new Set(serviceFilteredNodes.map((n) => n.id));
 
-  const filteredEdges =
-    viewType === "functionFlow" && selectedServiceId
-      ? activeView.edges.filter(
-          (e) => serviceFilteredNodeIds.has(e.source) && serviceFilteredNodeIds.has(e.target)
-        )
-      : activeView.edges;
+  const filteredEdges = isServiceFiltered
+    ? activeView.edges.filter(
+        (e) => serviceFilteredNodeIds.has(e.source) && serviceFilteredNodeIds.has(e.target)
+      )
+    : activeView.edges;
 
-  const filteredNodes = viewType === "functionFlow"
+  const filteredNodes = isServiceFiltered
     ? (() => {
+        // dataFlow and functionFlow: show all nodes for the service (no connectivity filter)
+        if (viewType === "dataFlow" || viewType === "functionFlow") return serviceFilteredNodes;
         const connectedIds = new Set(filteredEdges.flatMap((e) => [e.source, e.target]));
         return serviceFilteredNodes.filter((n) => connectedIds.has(n.id));
       })()
     : serviceFilteredNodes;
 
+  // ── 1b. Function flow: kind filter + collapse ─────────────────────────────
+  let fnFlowNodes = filteredNodes;
+  let fnFlowEdges = filteredEdges;
+
+  if (viewType === "functionFlow") {
+    const hiddenNodeIds = new Set<string>();
+
+    fnFlowNodes = filteredNodes
+      .map((n) => {
+        if (n.type === "classGroupNode") {
+          const isCollapsed = collapsedGroups.has(n.id);
+          return {
+            ...n,
+            data: { ...n.data, isCollapsed },
+            style: { ...n.style, height: isCollapsed ? COLLAPSED_H : n.style?.height },
+          };
+        }
+        // Function node: mark as hidden if its group is collapsed or kind is filtered
+        if (n.parentId && collapsedGroups.has(n.parentId)) {
+          hiddenNodeIds.add(n.id);
+        } else if (hiddenKinds.has((n.data as any).kind as FunctionKind)) {
+          hiddenNodeIds.add(n.id);
+        }
+        return n;
+      })
+      .filter((n) => !hiddenNodeIds.has(n.id));
+
+    // Remove groups that have no visible children — but keep collapsed groups
+    // (their children are intentionally hidden, not absent)
+    const nonEmptyGroupIds = new Set(fnFlowNodes.filter((n) => n.parentId).map((n) => n.parentId!));
+    fnFlowNodes = fnFlowNodes.filter(
+      (n) => n.type !== "classGroupNode" || nonEmptyGroupIds.has(n.id) || collapsedGroups.has(n.id)
+    );
+
+    const visibleIds = new Set(fnFlowNodes.map((n) => n.id));
+    fnFlowEdges = filteredEdges.filter(
+      (e) => visibleIds.has(e.source) && visibleIds.has(e.target)
+    );
+  }
+
   // ── 2. Enrich and assign z-index ──────────────────────────────────────────
+  // functionFlow nodes already have kind/httpMethod/path/topics from the builder
   const enrichedNodes = viewType === "functionFlow"
-    ? (() => {
-        const kindMap = buildKindMap(filteredNodes, allServices);
-        return filteredNodes.map((n) => {
-          const meta = kindMap.get(n.id);
-          return meta ? { ...n, data: { ...n.data, ...meta } } : n;
-        });
-      })()
+    ? fnFlowNodes
     : filteredNodes;
+
 
   // ── 3. Dagre layout (memoised — re-runs only when view data changes) ───────
   // containerDiagram skips dagre: nodes already have hand-crafted positions and
   // use parent/child (group) relationships that dagre doesn't understand.
   const laidNodes = useMemo(() => {
-    if (viewType === "containerDiagram") return enrichedNodes;
-    const { nodes } = getLayoutedElements(enrichedNodes as any, filteredEdges as any);
+    if (viewType === "containerDiagram" || viewType === "functionFlow") return enrichedNodes;
+    const { nodes } = getLayoutedElements(enrichedNodes as any, fnFlowEdges as any);
     return nodes;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeView, viewType, selectedServiceId]);
+  }, [activeView, viewType, selectedServiceId, collapsedGroups, hiddenKinds]);
 
   // ── 4. Route edges using laid-out positions ───────────────────────────────
   const rfEdges = useMemo(() => {
     const map = new Map((laidNodes as any[]).map((n: any) => [n.id, n]));
-    return routeEdges(filteredEdges, map);
+    // functionFlow edges already have markerEnd:"arrow" from the builder; strip labels
+    const edgesToRoute = viewType === "functionFlow"
+      ? fnFlowEdges.map((e) => ({ ...e, label: undefined }))
+      : fnFlowEdges;
+    return routeEdges(edgesToRoute, map);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [laidNodes]);
 
   // Ref to avoid stale closure in deferred re-route callbacks
-  const filteredEdgesRef = useRef(filteredEdges);
-  filteredEdgesRef.current = filteredEdges;
+  const filteredEdgesRef = useRef(fnFlowEdges);
+  filteredEdgesRef.current = fnFlowEdges;
 
   // ── 5. React Flow state ───────────────────────────────────────────────────
   const [nodes, setNodes, onNodesChange] = useNodesState(laidNodes as any);
   const [edges, setEdges, onEdgesChange] = useEdgesState(rfEdges as any);
   const { fitView, getNodes } = useReactFlow();
 
+  // ── 6. Edge highlight based on selected node ──────────────────────────────
+  const displayEdges = useMemo(() => {
+    if (!selectedNodeId) return edges;
+    return (edges as any[]).map((e: any) => {
+      const connected = e.source === selectedNodeId || e.target === selectedNodeId;
+      return {
+        ...e,
+        style: {
+          ...e.style,
+          stroke: connected ? "#f59e0b" : "#1f2937",
+          strokeWidth: connected ? 2.5 : 1,
+          opacity: connected ? 1 : 0.15,
+        },
+      };
+    });
+  }, [edges, selectedNodeId]);
+
   // Sync state whenever the laid-out data changes (view switch, filter change)
   useEffect(() => {
     setNodes(laidNodes as any);
     setEdges(rfEdges as any);
 
-    if (viewType === "containerDiagram") {
+    if (viewType === "containerDiagram" || viewType === "functionFlow") {
       // Second pass: re-route once React Flow has measured actual node dimensions.
       // Use getNodes() (reads React Flow's Zustand store synchronously) to avoid
       // stale positions from batched React state.
       const timer = setTimeout(() => {
         const nm = new Map(getNodes().map((n: any) => [n.id, n]));
-        setEdges(routeEdges(filteredEdgesRef.current, nm) as any);
+        const edgesForReroute = viewType === "functionFlow"
+          ? filteredEdgesRef.current.map((e: any) => ({ ...e, label: undefined }))
+          : filteredEdgesRef.current;
+        setEdges(routeEdges(edgesForReroute, nm) as any);
         fitView({ duration: 300 });
       }, 150);
       return () => clearTimeout(timer);
@@ -263,11 +354,14 @@ function GraphCanvas({
   // edges from the original (unprocessed) filteredEdges to avoid double-
   // converting markerEnd.
   const handleAutoLayout = useCallback(() => {
-    if (viewType === "containerDiagram") {
+    if (viewType === "containerDiagram" || viewType === "functionFlow") {
       // No dagre — just re-route with current measured positions, then fitView.
       // getNodes() reads React Flow's Zustand store directly (never stale).
       const nm = new Map(getNodes().map((n: any) => [n.id, n]));
-      setEdges(routeEdges(filteredEdgesRef.current, nm) as any);
+      const edgesForReroute = viewType === "functionFlow"
+        ? filteredEdgesRef.current.map((e: any) => ({ ...e, label: undefined }))
+        : filteredEdgesRef.current;
+      setEdges(routeEdges(edgesForReroute, nm) as any);
       setTimeout(() => fitView({ duration: 400 }), 50);
     } else {
       // Re-run with actual measured dimensions (available after first render).
@@ -281,13 +375,15 @@ function GraphCanvas({
   }, [nodes, filteredEdges, viewType, getNodes, setNodes, setEdges, fitView]);
 
   return (
+    <>
     <ReactFlow
       key={`${viewType}-${selectedServiceId ?? "all"}`}
       nodes={nodes}
-      edges={edges}
+      edges={displayEdges}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       nodeTypes={nodeTypes}
+      onPaneClick={() => setSelectedNodeId(null)}
       onNodeDragStop={() => {
         if (viewType !== "containerDiagram") return;
         // getNodes() reads React Flow's Zustand store synchronously — guaranteed
@@ -297,8 +393,28 @@ function GraphCanvas({
         setEdges(routeEdges(filteredEdgesRef.current, nm) as any);
       }}
       onNodeClick={(_, node) => {
+        // DTO click → show JSON example popup
+        if (node.type === "dataTypeNode") {
+          const name = (node.data as any).name as string;
+          const dto = allServices.flatMap((s) => s.dataTypes).find((d) => d.name === name);
+          if (dto) setSelectedDto(dto);
+          setSelectedNodeId(node.id);
+          return;
+        }
+        // Class group click → toggle collapse
+        if (node.type === "classGroupNode") {
+          setCollapsedGroups((prev) => {
+            const next = new Set(prev);
+            if (next.has(node.id)) next.delete(node.id);
+            else next.add(node.id);
+            return next;
+          });
+          setSelectedNodeId(node.id);
+          return;
+        }
         if (viewType === "serviceFlow" && node.type === "serviceNode") {
           onDrillIn(node.id);
+          return;
         }
         // External service nodes in container diagram → navigate to their container
         if (
@@ -307,7 +423,9 @@ function GraphCanvas({
           !node.parentId
         ) {
           onDrillIn(node.id);
+          return;
         }
+        setSelectedNodeId((prev) => (prev === node.id ? null : node.id));
       }}
       fitView
       colorMode="dark"
@@ -332,7 +450,7 @@ function GraphCanvas({
           Auto Layout
         </button>
       </Panel>
-      {(viewType === "functionFlow" || viewType === "containerDiagram") && (
+      {(viewType === "functionFlow" || viewType === "containerDiagram" || viewType === "dataFlow") && (
         <Panel position="top-left">
           <div className="flex items-center gap-3 bg-gray-900/80 border border-gray-700 rounded-md px-3 py-1.5 backdrop-blur">
             <span className="text-xs text-gray-400">Service:</span>
@@ -344,7 +462,49 @@ function GraphCanvas({
           </div>
         </Panel>
       )}
+      {viewType === "functionFlow" && (
+        <Panel position="bottom-left">
+          <div className="flex items-center gap-1.5 bg-gray-900/90 border border-gray-700 rounded-md px-3 py-2 backdrop-blur">
+            <span className="text-[10px] text-gray-500 mr-0.5">Hide:</span>
+            {(
+              [
+                ["service",        "SERVICE",   "border-amber-700 text-amber-400"],
+                ["controller",     "HTTP",      "border-blue-700 text-blue-400"],
+                ["kafka-consumer", "CONSUMER",  "border-purple-700 text-purple-400"],
+                ["repository",     "REPO",      "border-green-800 text-green-400"],
+                ["scheduler",      "SCHEDULED", "border-orange-700 text-orange-400"],
+              ] as [FunctionKind, string, string][]
+            ).map(([kind, label, colorCls]) => (
+              <button
+                key={kind}
+                onClick={() =>
+                  setHiddenKinds((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(kind)) next.delete(kind);
+                    else next.add(kind);
+                    return next;
+                  })
+                }
+                className={`text-[10px] px-1.5 py-0.5 rounded border font-mono transition-opacity ${colorCls} ${
+                  hiddenKinds.has(kind) ? "opacity-30" : "opacity-100"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </Panel>
+      )}
     </ReactFlow>
+    {selectedDto && (
+      <DtoJsonModal
+        dto={selectedDto}
+        allServices={allServices}
+        onClose={() => setSelectedDto(null)}
+      />
+    )}
+    </>
+
   );
 }
 
@@ -371,7 +531,7 @@ export default function GraphView({
     );
   }
 
-  if ((viewType === "functionFlow" || viewType === "containerDiagram") && !selectedServiceId) {
+  if ((viewType === "functionFlow" || viewType === "containerDiagram" || viewType === "dataFlow") && !selectedServiceId) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 gap-4">
         <ServiceSearch
@@ -385,7 +545,7 @@ export default function GraphView({
   }
 
   const filteredNodes =
-    viewType === "functionFlow" && selectedServiceId
+    (viewType === "functionFlow" || viewType === "dataFlow") && selectedServiceId
       ? view.nodes.filter((n) => (n.data as any).serviceId === selectedServiceId)
       : view.nodes;
 

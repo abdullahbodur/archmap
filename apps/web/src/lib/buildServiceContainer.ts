@@ -7,9 +7,9 @@ const INFRA_TYPE_TO_NODE: Record<string, string> = {
   external: "externalNode",
 };
 
-const PADDING = 60;
-const SERVICE_HEIGHT = 180;
-const INFRA_SPACING = 180;
+const PADDING = 80;
+const SERVICE_HEIGHT = 260;
+const INFRA_SPACING = 220;
 
 export function buildServiceContainerView(
   svc: AnalyzedService,
