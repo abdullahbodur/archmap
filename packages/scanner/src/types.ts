@@ -49,6 +49,7 @@ export interface InfraNode {
   technology?: string;
   description?: string;
   ref?: string;
+  internal?: boolean;
 }
 
 // Partial declaration as it appears in archmap.yml — name/type may come from a ref file
@@ -59,6 +60,7 @@ export interface RawInfraDecl {
   technology?: string;
   description?: string;
   ref?: string;
+  internal?: boolean;
 }
 
 // ─── Kafka (mirrored from @archmap/analyzer, kept local to avoid circular dep) ─

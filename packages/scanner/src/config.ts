@@ -47,6 +47,7 @@ export function parseRepoConfig(text: string): RepoConfig | null {
             ...(typeof e.technology === "string" && { technology: e.technology }),
             ...(typeof e.description === "string" && { description: e.description }),
             ...(typeof e.ref === "string" && { ref: e.ref }),
+            ...(e.internal === true && { internal: true }),
           });
         }
         return result.length > 0 ? result : undefined;

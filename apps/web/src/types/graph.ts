@@ -7,6 +7,7 @@ export interface InfraNode {
   technology?: string;
   description?: string;
   ref?: string;
+  internal?: boolean;
 }
 
 export interface Endpoint {
@@ -37,8 +38,11 @@ export interface CrossServiceCall {
 
 export interface ServiceFunction {
   name: string;
+  className?: string;
   signature: string;
   callsOut: CrossServiceCall[];
+  callsMethods?: string[];
+  callsBeanMethods?: { beanVariable: string; methodName: string }[];
 }
 
 export interface KafkaProducer {

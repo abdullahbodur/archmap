@@ -162,8 +162,8 @@ export function getLayoutedElements(
   g.setDefaultEdgeLabel(() => ({}));
   g.setGraph({
     rankdir: direction,
-    nodesep: spacing,
-    ranksep: spacing * 2,
+    nodesep: spacing * 1.2,
+    ranksep: spacing * 2.5,
     marginx: spacing,
     marginy: spacing,
   });

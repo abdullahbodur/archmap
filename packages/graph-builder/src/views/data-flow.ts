@@ -38,34 +38,32 @@ export function buildDataFlow(services: AnalyzedService[]): GraphView {
     },
   }));
 
-  const nodes = gridLayout(nodesWithoutPos, undefined, 280, 220);
+  const nodes = gridLayout(nodesWithoutPos, undefined, 320, 300);
 
-  // One edge per producer→consumer service pair to avoid edge explosion.
-  // Label shows the shared type names (up to 3).
-  const pairMap = new Map<string, string[]>();
+  // ── DTO→DTO edges: field type references another known DTO ───────────────
+  const dtList = Array.from(typeMap.values());
+  const dtNames = new Set(dtList.map((d) => d.name));
+  const edgeSet = new Set<string>();
+  const edges: GraphView["edges"] = [];
 
-  for (const dt of typeMap.values()) {
-    for (const producer of dt.producedBy) {
-      for (const consumer of dt.consumedBy) {
-        if (producer === consumer) continue;
-        const key = `${producer}→${consumer}`;
-        if (!pairMap.has(key)) pairMap.set(key, []);
-        pairMap.get(key)!.push(dt.name);
-      }
+  for (const a of dtList) {
+    for (const field of a.fields) {
+      const genericMatch = field.type.match(/^(?:\w+)<(.+)>$/);
+      const rawType = (genericMatch ? genericMatch[1] : field.type).trim();
+      if (!dtNames.has(rawType) || rawType === a.name) continue;
+      const key = `${a.name}→${rawType}`;
+      if (edgeSet.has(key)) continue;
+      edgeSet.add(key);
+      edges.push({
+        id: `ref:${key}`,
+        source: `dt:${a.name}`,
+        target: `dt:${rawType}`,
+        label: field.name,
+        animated: false,
+        markerEnd: "arrow",
+      });
     }
   }
-
-  const edges = Array.from(pairMap.entries()).map(([key, types]) => {
-    const [source, target] = key.split("→");
-    return {
-      id: `dto:${key}`,
-      source,
-      target,
-      label: types.slice(0, 3).join(", ") + (types.length > 3 ? "…" : ""),
-      animated: false,
-      markerEnd: "arrow",
-    };
-  });
 
   return { nodes, edges };
 }

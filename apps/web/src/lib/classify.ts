@@ -17,7 +17,7 @@ export interface FunctionMeta {
   topics?: string[];
 }
 
-function classifyByClassName(className: string): FunctionKind {
+export function classifyByClassName(className: string): FunctionKind {
   if (/Controller$/i.test(className)) return "controller";
   if (/Consumer$|Listener$/i.test(className)) return "kafka-consumer";
   if (/Scheduler$|Job$|Task$/i.test(className)) return "scheduler";

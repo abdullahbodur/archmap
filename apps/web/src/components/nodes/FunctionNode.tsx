@@ -14,6 +14,7 @@ interface FunctionNodeData {
   httpMethod?: string;
   path?: string;
   topics?: string[];
+  grouped?: boolean; // true when inside a ClassGroupNode — hides redundant className/serviceName
 }
 
 const HTTP_METHOD_COLORS: Record<string, string> = {
@@ -81,6 +82,7 @@ const KIND_STYLES: Record<
 export default function FunctionNode({ data }: NodeProps) {
   const d = data as unknown as FunctionNodeData;
   const kind: FunctionKind = d.kind ?? "method";
+  const grouped = d.grouped ?? false;
   const style = KIND_STYLES[kind];
 
   const isPrivate = d.signature?.includes("private ");
@@ -108,9 +110,11 @@ export default function FunctionNode({ data }: NodeProps) {
           <div className={`w-1 shrink-0 ${style.accent}`} />
           <div className="flex-1 p-3">
             {/* Class name */}
-            <div className="text-gray-500 text-[10px] font-mono truncate mb-1 leading-tight">
-              {d.className}
-            </div>
+            {!grouped && (
+              <div className="text-gray-500 text-[10px] font-mono truncate mb-1 leading-tight">
+                {d.className}
+              </div>
+            )}
 
             {/* Badge + method name */}
             <div className="flex items-center gap-1.5 mb-1">
@@ -144,8 +148,10 @@ export default function FunctionNode({ data }: NodeProps) {
               </div>
             )}
 
-            {/* Service name footer */}
-            <p className="text-gray-600 text-[10px] truncate">{d.serviceName}</p>
+            {/* Service name footer — hidden inside group (already shown on the group header) */}
+            {!grouped && (
+              <p className="text-gray-600 text-[10px] truncate">{d.serviceName}</p>
+            )}
           </div>
         </div>
       </div>
